@@ -3,15 +3,14 @@ use human_panic::setup_panic;
 use indicatif::ProgressBar;
 use sha2::{Digest, Sha256};
 use reqwest::Url;
-use tempfile::tempfile;
 use soup::prelude::*;
 use soup::Soup;
-use tar::Archive;
 use std::error::Error;
 use std::fs::File;
-use archiver_rs;
+use std::path::PathBuf;
 use std::io::prelude::*;
 use versions::Versioning;
+use directories::UserDirs;
 #[cfg(target_os = "linux")]
 static FILE_EXT: &str = "linux-amd64.tar.gz";
 #[cfg(target_os = "windows")]
@@ -24,8 +23,11 @@ static DL_URL: &str = "https://golang.org/dl";
 async fn main() -> Result<(), Box<dyn Error>> {
     setup_panic!();
     let golang = GoVersion::latest().await;
-    let mut f = golang.download().await?;
-    let archive = archiver_rs::open(f).unwrap();
+    let file_path = golang.download().await?;
+    let mut f = archiver_rs::open(file_path.as_path())?;
+    let dst = std::path::Path::new("/home/xc5/Downloads/go_test");
+    f.extract(&dst)?;
+    
     
     Ok(())
 }
@@ -90,16 +92,20 @@ impl GoVersion {
         let ret = Url::parse(&format!("{}/go{}.{}", DL_URL, vers, FILE_EXT)).unwrap();
         ret
     }
-    pub async fn download(&self) -> Result<File, Box<dyn Error>> {
+    pub async fn download(&self) -> Result<PathBuf, Box<dyn Error>> {
         let style = indicatif::ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("#>-");
         let mut resp = reqwest::get(self.dl_url.clone()).await?;
         let total = resp.content_length().unwrap();
+        let user_dirs = UserDirs::new().unwrap();
+        let download_dir = user_dirs.download_dir().unwrap();
+        let filename = resp.url().path_segments().unwrap().last().unwrap();
+        let path = download_dir.join(filename);
         let pb = ProgressBar::new(total);
         pb.set_style(style);
         let mut hash = Sha256::new();
-        let mut f = tempfile()?;
+        let mut f = File::create(path.clone())?;
         while let Some(chunk) = resp.chunk().await? {
             let len = chunk.len();
             f.write(&chunk)?;
@@ -107,6 +113,7 @@ impl GoVersion {
             hash.update(&chunk);
         }
         f.flush()?;
+        f.sync_all()?;
         pb.finish();
         let finally = hash.finalize();
         println!("{}", self.sha256);
@@ -114,7 +121,7 @@ impl GoVersion {
         if self.sha256 == hexed {
             println!("Nice");
         }
-        Ok(f)
+        Ok(path)
     }
     pub async fn latest() -> Self {
         let vers = GoVersion::get_latest();
