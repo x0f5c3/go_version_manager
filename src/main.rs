@@ -10,7 +10,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::io::prelude::*;
 use versions::Versioning;
-use directories::UserDirs;
+use structopt::StructOpt;
 #[cfg(target_os = "linux")]
 static FILE_EXT: &str = "linux-amd64.tar.gz";
 #[cfg(target_os = "windows")]
@@ -19,14 +19,20 @@ static FILE_EXT: &str = "windows-amd64.msi";
 static FILE_EXT: &str = "darwin-amd64.pkg";
 
 static DL_URL: &str = "https://golang.org/dl";
+#[derive(Debug, StructOpt)]
+struct Opt {
+    #[structopt(parse(from_os_str))]
+    output: PathBuf,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     setup_panic!();
+    let opt = Opt::from_args();
     let golang = GoVersion::latest().await;
-    let file_path = golang.download().await?;
-    let mut f = archiver_rs::open(file_path.as_path())?;
-    let dst = std::path::Path::new("/home/xc5/Downloads/go_test");
-    f.extract(&dst)?;
+    let file_path = golang.download(opt.output).await?;
+    let path_str = file_path.to_str().expect("Couldn't convert path to str");
+    println!("Golang has been downloaded to {}", path_str);
     
     
     Ok(())
@@ -92,20 +98,16 @@ impl GoVersion {
         let ret = Url::parse(&format!("{}/go{}.{}", DL_URL, vers, FILE_EXT)).unwrap();
         ret
     }
-    pub async fn download(&self) -> Result<PathBuf, Box<dyn Error>> {
+    pub async fn download(&self, output: PathBuf) -> Result<PathBuf, Box<dyn Error>> {
         let style = indicatif::ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("#>-");
         let mut resp = reqwest::get(self.dl_url.clone()).await?;
         let total = resp.content_length().unwrap();
-        let user_dirs = UserDirs::new().unwrap();
-        let download_dir = user_dirs.download_dir().unwrap();
-        let filename = resp.url().path_segments().unwrap().last().unwrap();
-        let path = download_dir.join(filename);
         let pb = ProgressBar::new(total);
         pb.set_style(style);
         let mut hash = Sha256::new();
-        let mut f = File::create(path.clone())?;
+        let mut f = File::create(output.clone())?;
         while let Some(chunk) = resp.chunk().await? {
             let len = chunk.len();
             f.write(&chunk)?;
@@ -121,7 +123,7 @@ impl GoVersion {
         if self.sha256 == hexed {
             println!("Nice");
         }
-        Ok(path)
+        Ok(output)
     }
     pub async fn latest() -> Self {
         let vers = GoVersion::get_latest();
