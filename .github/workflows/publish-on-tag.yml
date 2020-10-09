@@ -18,8 +18,8 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/mything
-        asset_name: mything
+        file: target/release/golang_downloader
+        asset_name: golang_downloader-linux-amd64
         tag: ${{ github.ref }}
         overwrite: true
         body: "This is my release text"
