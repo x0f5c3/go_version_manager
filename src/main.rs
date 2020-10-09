@@ -61,7 +61,7 @@ impl GoVersion {
     }
     fn get_versions() -> Vec<Versioning> {
         let unparsed = Self::get_git_versions();
-        let mut parsed: Vec<Versioning> = unparsed
+        let parsed: Vec<Versioning> = unparsed
             .iter()
             .map(|x| Versioning::new(x.as_ref()).unwrap())
             .filter(|x| x.is_ideal())
