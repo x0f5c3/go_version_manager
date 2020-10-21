@@ -16,3 +16,4 @@ versions = "*"
 indicatif = "*"
 human-panic = "*"
 structopt = "*"
+openssl { version = "*", features = ["vendored"] }
