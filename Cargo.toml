@@ -25,6 +25,8 @@ indicatif = "*"
 human-panic = "*"
 structopt = "*"
 openssl = { version = "*", features = ["vendored"] }
+console = "*"
+anyhow = "*"
 
 
 [badges]

@@ -1,18 +1,21 @@
 //! `golang_downloader` is a small program intended to download the latest or chosen golang version
 //! from the official site also checking the checksum for the file
 use duct::cmd;
+use anyhow::Result;
+use std::error;
+use console::{Term,Style};
 use human_panic::setup_panic;
 use indicatif::ProgressBar;
 use sha2::{Digest, Sha256};
 use reqwest::Url;
 use soup::prelude::*;
 use soup::Soup;
-use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
 use std::io::prelude::*;
 use versions::Versioning;
 use structopt::StructOpt;
+use std::fmt;
 #[cfg(target_os = "linux")]
 static FILE_EXT: &str = "linux-amd64.tar.gz";
 #[cfg(target_os = "windows")]
@@ -22,6 +25,16 @@ static FILE_EXT: &str = "darwin-amd64.pkg";
 
 static DL_URL: &str = "https://golang.org/dl";
 
+#[derive(Debug, Clone)]
+struct WrongSha;
+
+impl fmt::Display for WrongSha {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Checksum doesn't match")
+    }
+}
+
+impl error::Error for WrongSha {}
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -32,10 +45,14 @@ struct Opt {
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<()> {
     setup_panic!();
     let opt = Opt::from_args();
-    let golang = GoVersion::latest().await;
+    let style = Style::new().green().bold();
+    let golang = GoVersion::latest().await.unwrap();
+    let term = Term::stdout();
+    term.set_title(format!("Downloading golang version {}",golang.version.clone()));
+    println!("Downloading golang {}", style.apply_to(golang.version.clone()));
     let file_path = golang.download(opt.output).await?;
     let path_str = file_path.to_str().expect("Couldn't convert path to str");
     println!("Golang has been downloaded to {}", path_str);
@@ -46,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// Golang version represented as a struct
 struct GoVersion {
     /// Holds the golang version
-    version: Versioning,
+    pub version: Versioning,
     /// Holds the download url for the version
     dl_url: Url,
     /// Holds the sha256 checksum
@@ -80,18 +97,19 @@ impl GoVersion {
         parsed
     }
     /// Gets the latest versions by sorting the parsed versions
-    fn get_latest() -> Versioning {
+    fn get_latest() -> Option<Versioning> {
         let mut versions = GoVersion::get_versions();
         versions.sort_by(|a, b| b.cmp(&a));
-        versions.first().unwrap().to_owned()
+        let latest = versions.first()?.to_owned();
+        Some(latest)
     }
     /// Uses the soup library to extract the checksum from the golang download site
-    async fn get_sha(vers: impl std::fmt::Display) -> Result<String, Box<dyn Error>> {
+    async fn get_sha(vers: impl std::fmt::Display) -> Result<String> {
         let resp = reqwest::get(DL_URL).await?;
         let soup = Soup::new(&resp.text().await?);
         let govers = format!("go{}", vers);
         let gofile = format!("{}.{}", govers, FILE_EXT);
-        let latest = soup.tag("div").attr("id", govers.clone()).find().unwrap();
+        let latest = soup.tag("div").attr("id", govers.clone()).find().unwrap(); 
         let children = latest.tag("tr").class("highlight").find_all();
         let found = children
             .filter(|child| {
@@ -113,7 +131,7 @@ impl GoVersion {
         ret
     }
     /// Downloads the required version async
-    pub async fn download(&self, output: PathBuf) -> Result<PathBuf, Box<dyn Error>> {
+    pub async fn download(&self, output: PathBuf) -> Result<PathBuf> {
         let style = indicatif::ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("#>-");
@@ -133,22 +151,21 @@ impl GoVersion {
         f.sync_all()?;
         pb.finish();
         let finally = hash.finalize();
-        println!("{}", self.sha256);
         let hexed = format!("{:x}", finally);
-        if self.sha256 == hexed {
-            println!("Nice");
+        if self.sha256 != hexed {
+             return Err(WrongSha.into())
         }
         Ok(output)
     }
     /// Constructs the latest GoVersion
-    pub async fn latest() -> Self {
-        let vers = GoVersion::get_latest();
+    pub async fn latest() -> Option<Self> {
+        let vers = GoVersion::get_latest()?;
         let url = GoVersion::construct_url(&vers);
         let sha = GoVersion::get_sha(&vers).await.unwrap();
-        GoVersion {
+        Some(GoVersion {
             version: vers,
             dl_url: url,
             sha256: sha,
-        }
+        })
     }
 }

@@ -6,14 +6,14 @@ on:
       - '*'
 
 jobs:
-  build_x64:
-    name: Publish binaries x64
+  build_x64_linux:
+    name: Publish binaries for linux x64
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --release
+      run: cargo build --release && strip target/release/golang_downloader
     - name: Upload binaries to release
       uses: svenstaro/upload-release-action@v2
       with:
@@ -48,3 +48,38 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
           body: "This is my release text"
+  build_x64_win:
+    name: Publish binaries for windows x64
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --release
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: target/release/golang_downloader.exe
+        asset_name: golang_downloader-windows-amd64.exe
+        tag: ${{ github.ref }}
+        overwrite: true
+        body: "This is my release text"
+
+  build_x64_mac:
+    name: Publish binaries for macos x64
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --release && strip target/release/golang_downloader
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: target/release/golang_downloader
+        asset_name: golang_downloader-darwin-amd64
+        tag: ${{ github.ref }}
+        overwrite: true
+        body: "This is my release text"
