@@ -1,8 +1,16 @@
 [package]
 name = "golang_downloader"
-version = "0.1.0"
+version = "0.8.0"
 authors = ["x0f5c3 <x0f5c3@tutanota.com>"]
 edition = "2018"
+description = "A small program to download chosen golang version"
+readme = "README.md"
+homepage = "https://github.com/x0f5c3/golang_downloader"
+repository = "https://github.com/x0f5c3/golang_downloader"
+license-file = "LICENSE"
+keywords = ["golang","packages","download"]
+categories = ["command-line-utilities","development-tools"]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,3 +25,7 @@ indicatif = "*"
 human-panic = "*"
 structopt = "*"
 openssl = { version = "*", features = ["vendored"] }
+
+
+[badges]
+github = { repository = "x0f5c3/golang_downloader" }
