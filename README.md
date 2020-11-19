@@ -1,4 +1,4 @@
-[![Workflow Status](https://github.com/x0f5c3/golang_downloader/workflows/main/badge.svg)](https://github.com/x0f5c3/golang_downloader/actions?query=workflow%3A%22main%22)
+![Workflow Status](https://github.com/x0f5c3/golang_downloader/workflows/Publish-on-tag/badge.svg)
 
 # golang_downloader
 
