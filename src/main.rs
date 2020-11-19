@@ -1,3 +1,5 @@
+//! `golang_downloader` is a small program intended to download the latest or chosen golang version
+//! from the official site also checking the checksum for the file
 use duct::cmd;
 use human_panic::setup_panic;
 use indicatif::ProgressBar;
@@ -19,12 +21,16 @@ static FILE_EXT: &str = "windows-amd64.msi";
 static FILE_EXT: &str = "darwin-amd64.pkg";
 
 static DL_URL: &str = "https://golang.org/dl";
+
+
 #[derive(Debug, StructOpt)]
 struct Opt {
     #[structopt(parse(from_os_str))]
     output: PathBuf,
 }
 
+/// Reads output path from command line arguments
+/// and downloads latest golang version to it
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     setup_panic!();
@@ -37,14 +43,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     
     Ok(())
 }
-
+/// Golang version represented as a struct
 struct GoVersion {
+    /// Holds the golang version
     version: Versioning,
+    /// Holds the download url for the version
     dl_url: Url,
+    /// Holds the sha256 checksum
     sha256: String,
 }
 
 impl GoVersion {
+    /// Gets golang versions from git tags
     fn get_git_versions() -> Vec<String> {
         let output = cmd!("git", "ls-remote", "--tags", "https://github.com/golang/go")
             .read()
@@ -59,6 +69,7 @@ impl GoVersion {
             .collect();
         tags
     }
+    /// Parses the versions into Versioning structs
     fn get_versions() -> Vec<Versioning> {
         let unparsed = Self::get_git_versions();
         let parsed: Vec<Versioning> = unparsed
@@ -68,11 +79,13 @@ impl GoVersion {
             .collect();
         parsed
     }
+    /// Gets the latest versions by sorting the parsed versions
     fn get_latest() -> Versioning {
         let mut versions = GoVersion::get_versions();
         versions.sort_by(|a, b| b.cmp(&a));
         versions.first().unwrap().to_owned()
     }
+    /// Uses the soup library to extract the checksum from the golang download site
     async fn get_sha(vers: impl std::fmt::Display) -> Result<String, Box<dyn Error>> {
         let resp = reqwest::get(DL_URL).await?;
         let soup = Soup::new(&resp.text().await?);
@@ -94,10 +107,12 @@ impl GoVersion {
         let sha = found.tag("tt").find().unwrap().text();
         Ok(sha)
     }
+    /// Constructs the url for the version
     fn construct_url(vers: impl std::fmt::Display) -> Url {
         let ret = Url::parse(&format!("{}/go{}.{}", DL_URL, vers, FILE_EXT)).unwrap();
         ret
     }
+    /// Downloads the required version async
     pub async fn download(&self, output: PathBuf) -> Result<PathBuf, Box<dyn Error>> {
         let style = indicatif::ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
@@ -125,6 +140,7 @@ impl GoVersion {
         }
         Ok(output)
     }
+    /// Constructs the latest GoVersion
     pub async fn latest() -> Self {
         let vers = GoVersion::get_latest();
         let url = GoVersion::construct_url(&vers);
