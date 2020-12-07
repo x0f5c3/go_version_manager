@@ -27,7 +27,7 @@ structopt = "*"
 openssl = { version = "*", features = ["vendored"] }
 console = "*"
 anyhow = "*"
-
+quit = "*"
 
 [badges]
 github = { repository = "x0f5c3/golang_downloader" }

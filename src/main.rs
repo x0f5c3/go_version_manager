@@ -16,6 +16,7 @@ use std::io::prelude::*;
 use versions::Versioning;
 use structopt::StructOpt;
 use std::fmt;
+use std::io::ErrorKind;
 #[cfg(target_os = "linux")]
 static FILE_EXT: &str = "linux-amd64.tar.gz";
 #[cfg(target_os = "windows")]
@@ -45,8 +46,13 @@ struct Opt {
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
 #[tokio::main]
+#[quit::main]
 async fn main() -> Result<()> {
     setup_panic!();
+    if ! check_git() {
+        eprintln!("Git is not installed");
+        quit::with_code(1);
+    }
     let opt = Opt::from_args();
     let style = Style::new().green().bold();
     let golang = GoVersion::latest().await.unwrap();
@@ -167,5 +173,17 @@ impl GoVersion {
             dl_url: url,
             sha256: sha,
         })
+    }
+}
+
+fn check_git() -> bool {
+    match cmd!("git", "version").run() {
+        Ok(_) => return true,
+        Err(e) => {
+            match e.kind() {
+                ErrorKind::NotFound => return false,
+                _ => return true,
+            }
+        }
     }
 }
