@@ -3,7 +3,7 @@ name: Publish-on-tag
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
 
 jobs:
   build_x64_linux:
@@ -13,16 +13,29 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
+      id: build
       run: cargo build --release && strip target/release/golang_downloader
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/golang_downloader
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        body_path: CHANGELOG.md
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: target/release/golang_downloader
         asset_name: golang_downloader-linux-amd64
-        tag: ${{ github.ref }}
-        overwrite: true
-        body: "This is my release text"
+        asset_content_type: application/octet-stream
   build_arm64:
     name: Publish binaries arm64
     runs-on: ubuntu-latest
@@ -39,15 +52,27 @@ jobs:
          use-cross: true
          command: build
          args: --release --target aarch64-unknown-linux-gnu
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/aarch64-unknown-linux-gnu/release/golang_downloader
-          asset_name: golang_downloader-linux-arm64
-          tag: ${{ github.ref }}
-          overwrite: true
-          body: "This is my release text"
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        body_path: CHANGELOG.md
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: target/aarch64-unknown-linux-gnu/release/golang_downloader
+        asset_name: golang_downloader-linux-arm64
+        asset_content_type: application/octet-stream
   build_x64_win:
     name: Publish binaries for windows x64
     runs-on: windows-latest
@@ -56,15 +81,27 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --release
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/golang_downloader.exe
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        body_path: CHANGELOG.md
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: target/release/golang_downloader.exe
         asset_name: golang_downloader-windows-amd64.exe
-        tag: ${{ github.ref }}
-        overwrite: true
-        body: "This is my release text"
+        asset_content_type: application/octet-stream
 
   build_x64_mac:
     name: Publish binaries for macos x64
@@ -74,12 +111,24 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --release && strip target/release/golang_downloader
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/golang_downloader
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        body_path: CHANGELOG.md
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: target/release/golang_downloader
         asset_name: golang_downloader-darwin-amd64
-        tag: ${{ github.ref }}
-        overwrite: true
-        body: "This is my release text"
+        asset_content_type: application/octet-stream
