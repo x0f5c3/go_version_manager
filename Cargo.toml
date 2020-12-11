@@ -16,7 +16,6 @@ categories = ["command-line-utilities","development-tools"]
 
 [dependencies]
 soup = "*"
-reqwest = { version = "*", features = ["json", "blocking"]}
 tokio = { version = "*", features = ["full"]}
 sha2 = "*"
 duct = "*"
@@ -24,10 +23,15 @@ versions = "*"
 indicatif = "*"
 human-panic = "*"
 structopt = "*"
-openssl = { version = "*", features = ["vendored"] }
 console = "*"
 anyhow = "*"
 quit = "*"
+
+[dependencies.reqwest]
+version = "*"
+default-features = false
+features = ["rustls-tls"]
+
 
 [badges]
 github = { repository = "x0f5c3/golang_downloader" }
