@@ -1,22 +1,22 @@
 //! `golang_downloader` is a small program intended to download the latest or chosen golang version
 //! from the official site also checking the checksum for the file
-use duct::cmd;
 use anyhow::Result;
-use std::error;
-use console::{Term,Style};
+use console::{Style, Term};
+use duct::cmd;
 use human_panic::setup_panic;
 use indicatif::ProgressBar;
-use sha2::{Digest, Sha256};
 use reqwest::Url;
+use sha2::{Digest, Sha256};
 use soup::prelude::*;
 use soup::Soup;
-use std::fs::File;
-use std::path::PathBuf;
-use std::io::prelude::*;
-use versions::Versioning;
-use structopt::StructOpt;
+use std::error;
 use std::fmt;
+use std::fs::File;
+use std::io::prelude::*;
 use std::io::ErrorKind;
+use std::path::PathBuf;
+use structopt::StructOpt;
+use versions::Versioning;
 #[cfg(target_os = "linux")]
 static FILE_EXT: &str = "linux-amd64.tar.gz";
 #[cfg(target_os = "windows")]
@@ -49,7 +49,7 @@ struct Opt {
 #[quit::main]
 async fn main() -> Result<()> {
     setup_panic!();
-    if ! check_git() {
+    if !check_git() {
         eprintln!("Git is not installed");
         quit::with_code(1);
     }
@@ -57,13 +57,18 @@ async fn main() -> Result<()> {
     let style = Style::new().green().bold();
     let golang = GoVersion::latest().await.unwrap();
     let term = Term::stdout();
-    term.set_title(format!("Downloading golang version {}",golang.version.clone()));
-    println!("Downloading golang {}", style.apply_to(golang.version.clone()));
+    term.set_title(format!(
+        "Downloading golang version {}",
+        golang.version.clone()
+    ));
+    println!(
+        "Downloading golang {}",
+        style.apply_to(golang.version.clone())
+    );
     let file_path = golang.download(opt.output).await?;
     let path_str = file_path.to_str().expect("Couldn't convert path to str");
     println!("Golang has been downloaded to {}", path_str);
-    
-    
+
     Ok(())
 }
 /// Golang version represented as a struct
@@ -115,7 +120,7 @@ impl GoVersion {
         let soup = Soup::new(&resp.text().await?);
         let govers = format!("go{}", vers);
         let gofile = format!("{}.{}", govers, FILE_EXT);
-        let latest = soup.tag("div").attr("id", govers.clone()).find().unwrap(); 
+        let latest = soup.tag("div").attr("id", govers.clone()).find().unwrap();
         let children = latest.tag("tr").class("highlight").find_all();
         let found = children
             .filter(|child| {
@@ -159,7 +164,7 @@ impl GoVersion {
         let finally = hash.finalize();
         let hexed = format!("{:x}", finally);
         if self.sha256 != hexed {
-             return Err(WrongSha.into())
+            return Err(WrongSha.into());
         }
         Ok(output)
     }
@@ -179,11 +184,9 @@ impl GoVersion {
 fn check_git() -> bool {
     match cmd!("git", "version").run() {
         Ok(_) => return true,
-        Err(e) => {
-            match e.kind() {
-                ErrorKind::NotFound => return false,
-                _ => return true,
-            }
-        }
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => return false,
+            _ => return true,
+        },
     }
 }
