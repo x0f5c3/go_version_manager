@@ -34,7 +34,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       id: build
-      run: cargo build --release && strip target/release/golang_downloader
+      run: cargo build --release && strip target/release/go_version_manager
     - name: Upload Release Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
@@ -42,8 +42,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: target/release/golang_downloader
-        asset_name: golang_downloader-linux-amd64
+        asset_path: target/release/go_version_manager
+        asset_name: go_version_manager-linux-amd64
         asset_content_type: application/octet-stream
   build_arm64:
     needs: [create_release]
@@ -69,8 +69,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: target/aarch64-unknown-linux-gnu/release/golang_downloader
-          asset_name: golang_downloader-linux-arm64
+          asset_path: target/aarch64-unknown-linux-gnu/release/go_version_manager
+          asset_name: go_version_manager-linux-arm64
           asset_content_type: application/octet-stream
   build_x64_win:
     needs: [create_release]
@@ -88,8 +88,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: target/release/golang_downloader.exe
-        asset_name: golang_downloader-windows-amd64.exe
+        asset_path: target/release/go_version_manager.exe
+        asset_name: go_version_manager-windows-amd64.exe
         asset_content_type: application/octet-stream
 
   build_x64_mac:
@@ -100,7 +100,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --release && strip target/release/golang_downloader
+      run: cargo build --release && strip target/release/go_version_manager
     - name: Upload Release Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
@@ -108,6 +108,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: target/release/golang_downloader
-        asset_name: golang_downloader-darwin-amd64
+        asset_path: target/release/go_version_manager
+        asset_name: go_version_manager-darwin-amd64
         asset_content_type: application/octet-stream

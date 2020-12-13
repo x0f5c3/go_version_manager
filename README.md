@@ -5,4 +5,4 @@
 # golang_downloader
 
 `golang_downloader` is a small program intended to download the latest or chosen golang version
-from the official site also checking the checksum for the file
+from the official site also checking the SHA256 sum for the file

@@ -1,22 +1,16 @@
-//! `golang_downloader` is a small program intended to download the latest or chosen golang version
-//! from the official site also checking the SHA-256 sum for the file
-use anyhow::Result;
-use console::{Style, Term};
 use duct::cmd;
-use human_panic::setup_panic;
-use indicatif::ProgressBar;
-use reqwest::Url;
-use sha2::{Digest, Sha256};
-use soup::prelude::*;
-use soup::Soup;
-use std::error;
-use std::fmt;
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::ErrorKind;
-use std::path::PathBuf;
-use structopt::StructOpt;
 use versions::Versioning;
+use sha2::Sha256;
+use indicatif::ProgressBar;
+use std::path::PathBuf;
+use soup::Soup;
+use reqwest::Url;
+use std::{fmt,error};
+
+
+
+static DL_URL: &str = "https://golang.org/dl";
+
 #[cfg(target_os = "linux")]
 static FILE_EXT: &str = "linux-amd64.tar.gz";
 #[cfg(target_os = "windows")]
@@ -24,7 +18,6 @@ static FILE_EXT: &str = "windows-amd64.msi";
 #[cfg(target_os = "macos")]
 static FILE_EXT: &str = "darwin-amd64.pkg";
 
-static DL_URL: &str = "https://golang.org/dl";
 
 #[derive(Debug, Clone)]
 struct WrongSha;
@@ -37,40 +30,6 @@ impl fmt::Display for WrongSha {
 
 impl error::Error for WrongSha {}
 
-#[derive(Debug, StructOpt)]
-struct Opt {
-    #[structopt(parse(from_os_str))]
-    output: PathBuf,
-}
-
-/// Reads output path from command line arguments
-/// and downloads latest golang version to it
-#[tokio::main]
-#[quit::main]
-async fn main() -> Result<()> {
-    setup_panic!();
-    if !check_git() {
-        eprintln!("Git is not installed");
-        quit::with_code(1);
-    }
-    let opt = Opt::from_args();
-    let style = Style::new().green().bold();
-    let golang = GoVersion::latest().await.unwrap();
-    let term = Term::stdout();
-    term.set_title(format!(
-        "Downloading golang version {}",
-        golang.version.clone()
-    ));
-    println!(
-        "Downloading golang {}",
-        style.apply_to(golang.version.clone())
-    );
-    let file_path = golang.download(opt.output).await?;
-    let path_str = file_path.to_str().expect("Couldn't convert path to str");
-    println!("Golang has been downloaded to {}", path_str);
-
-    Ok(())
-}
 /// Golang version represented as a struct
 struct GoVersion {
     /// Holds the golang version
