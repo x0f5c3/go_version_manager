@@ -1,4 +1,4 @@
-//! `golang_downloader` is a small program intended to download the latest or chosen golang version
+//! `go_version_manager` is a small program intended to download the latest or chosen golang version
 //! from the official site also checking the checksum for the file
 use anyhow::Result;
 use console::{Style, Term};
