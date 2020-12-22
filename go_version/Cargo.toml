@@ -20,6 +20,10 @@ anyhow = "*"
 quit = "*"
 thiserror = "*"
 runas = "*"
+log = "*"
+futures = "*"
+tempfile = "*"
+url = "*"
 
 [dependencies.reqwest]
 version = "*"

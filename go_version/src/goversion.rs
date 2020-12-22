@@ -5,7 +5,10 @@ use indicatif::ProgressBar;
 use std::path::PathBuf;
 use soup::Soup;
 use reqwest::Url;
+use std::fs::File;
 use std::{fmt,error};
+use soup::{NodeExt, QueryBuilderExt};
+use std::io::ErrorKind;
 
 
 
