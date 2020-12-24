@@ -2,6 +2,7 @@
 //! from the official site also checking the checksum for the file
 use console::{Style, Term};
 use human_panic::setup_panic;
+use versions::Versioning;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use error::Error;
@@ -13,6 +14,8 @@ struct Opt {
     output: PathBuf,
     #[structopt(short,long, default_value = "2")]
     workers: u8,
+    #[structopt(long, parse(try_from_str = parse_version))]
+    version: Option<Versioning>,
 }
 
 /// Reads output path from command line arguments
@@ -23,7 +26,13 @@ async fn main() -> Result<(), Error> {
     setup_panic!();
     let opt = Opt::from_args();
     let style = Style::new().green().bold();
-    let golang = goversion::GoVersion::latest().await?;
+    let golang = {
+        if let Some(vers) = opt.version {
+            goversion::GoVersion::version(vers).await?
+        } else {
+        goversion::GoVersion::latest().await?
+        }
+    };
     let term = Term::stdout();
     term.set_title(format!(
         "Downloading golang version {}",
@@ -39,7 +48,10 @@ async fn main() -> Result<(), Error> {
 
     Ok(())
 }
-/// Golang version represented as a struct
+
+fn parse_version(src: &str) -> Result<Versioning, Error> {
+    Versioning::new(src).ok_or_else(|| Error::VersParse)
+}
 
 mod goversion;
 mod error;

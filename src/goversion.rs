@@ -16,6 +16,7 @@ static FILE_EXT: &str = "darwin-amd64.pkg";
 
 static DL_URL: &str = "https://golang.org/dl";
 
+/// Golang version represented as a struct
 pub struct GoVersion {
     /// Holds the golang version
     pub version: Versioning,
@@ -98,6 +99,15 @@ impl GoVersion {
     /// Constructs the latest GoVersion
     pub async fn latest() -> Result<Self, Error> {
         let vers = GoVersion::get_latest()?;
+        let url = GoVersion::construct_url(&vers);
+        let sha = GoVersion::get_sha(&vers).await?;
+        Ok(GoVersion {
+            version: vers,
+            dl_url: url,
+            sha256: sha,
+        })
+    }
+    pub async fn version(vers: Versioning) -> Result<Self, Error> {
         let url = GoVersion::construct_url(&vers);
         let sha = GoVersion::get_sha(&vers).await?;
         Ok(GoVersion {

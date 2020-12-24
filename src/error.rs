@@ -19,5 +19,7 @@ pub enum Error {
     GitError(#[from] git2::Error),
     #[error("No sha256 found")]
     NoSha,
+    #[error("Failed to parse version")]
+    VersParse,
 
 }
