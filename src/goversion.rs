@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use versions::Versioning;
 use crate::error::Error;
 use manic::progress::downloader;
-use git2::{Remote, Direction};
+use duct::cmd;
 #[cfg(target_os = "linux")]
 static FILE_EXT: &str = "linux-amd64.tar.gz";
 #[cfg(target_os = "windows")]
@@ -29,17 +29,15 @@ pub struct GoVersion {
 impl GoVersion {
     /// Gets golang versions from git tags
     fn get_git_versions() -> Result<Vec<String>, Error> {
-        let mut detached = Remote::create_detached("https://github.com/golang/go")?;
-        detached.connect(Direction::Fetch)?;
-        let output = detached.list()?;
-        let tags: Vec<String> = output
-            .iter()
-            .map(|x| x.name().trim())
-            .filter(|x| x.contains("go"))
-            .map(|x| x.split('/').nth(2).unwrap())
-            .map(|x| x.replace("go", ""))
-            .collect();
-        Ok(tags)
+        let output: Vec<String> = cmd!("git", "ls-remote", "--tags", "https://github.com/golang/go").read()?
+        .trim()
+        .lines()
+        .filter(|x| x.contains("go"))
+        .filter_map(|x| x.split('\t').nth(1))
+        .filter_map(|x| x.split('/').nth(2))
+        .map(|x| x.replace("go", ""))
+        .collect();
+        Ok(output)
     }
     /// Parses the versions into Versioning structs
     pub fn get_versions() -> Result<Vec<Versioning>, Error> {
@@ -117,5 +115,15 @@ impl GoVersion {
             dl_url: url,
             sha256: sha,
         })
+    }
+}
+
+pub fn check_git() -> bool {
+    match cmd!("git", "version").stdout_null().run() {
+        Ok(_) => return true,
+        Err(e) => match e.kind() {
+            std::io::ErrorKind::NotFound => return false,
+            _ => return true,
+        }
     }
 }

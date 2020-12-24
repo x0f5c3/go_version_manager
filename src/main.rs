@@ -4,7 +4,7 @@ use colored::Colorize;
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
 use error::Error;
-use goversion::GoVersion;
+use goversion::{check_git, GoVersion};
 use human_panic::setup_panic;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -30,14 +30,24 @@ async fn main() -> Result<(), Error> {
     setup_panic!();
     let opt = Opt::from_args();
     let term = Term::stdout();
+    let git_present = check_git();
     let golang = {
         if let Some(vers) = opt.version {
             goversion::GoVersion::version(vers).await?
-        } else if opt.interactive {
+        } else if opt.interactive && git_present {
             let vers = ask_for_version(&term)?;
             goversion::GoVersion::version(vers).await?
         } else {
-            goversion::GoVersion::latest().await?
+            if git_present {
+                goversion::GoVersion::latest().await?
+            } else {
+                leg::error(
+                    "You requested the latest version and git is not installed, please install git",
+                    None,
+                    None,
+                );
+                quit::with_code(127);
+            }
         }
     };
     format!("Downloading golang version {}", &golang.version);
@@ -50,7 +60,10 @@ async fn main() -> Result<(), Error> {
         None,
     );
     let file_path = golang.download(opt.output, opt.workers).await?;
-    let path_str = file_path.to_str().expect("Couldn't convert path to str").to_string();
+    let path_str = file_path
+        .to_str()
+        .expect("Couldn't convert path to str")
+        .to_string();
     leg::success(
         &format!("Golang has been downloaded to {}", path_str),
         None,
@@ -74,7 +87,11 @@ fn ask_for_version(term: &Term) -> Result<Versioning, Error> {
     if let Some(index) = selection {
         Ok(versions[index].clone())
     } else {
-        leg::error(&format!("{}", "You didn't select anything".red().bold()), None, None);
+        leg::error(
+            &format!("{}", "You didn't select anything".red().bold()),
+            None,
+            None,
+        );
         quit::with_code(127);
     }
 }
