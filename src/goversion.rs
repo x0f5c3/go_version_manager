@@ -66,10 +66,10 @@ impl GoVersion {
         let soup = Soup::new(&resp.text().await?);
         let govers = format!("go{}", vers);
         let gofile = format!("{}.{}", govers, FILE_EXT);
-        let latest = soup.tag("div").attr("id", govers.clone()).find().ok_or_else(|| Error::NoSha)?;
-        let children = latest.tag("tr").class("highlight").find_all();
+        let latest = soup.tag("div").attr("id", govers).find().ok_or(Error::NoSha)?;
+        let mut children = latest.tag("tr").class("highlight").find_all();
         let found = children
-            .filter(|child| {
+            .find(|child| {
                 child
                     .class("filename")
                     .find()
@@ -77,9 +77,8 @@ impl GoVersion {
                     .text()
                     .contains(&gofile)
             })
-            .next()
-            .ok_or_else(|| Error::NoSha)?;
-        let sha = found.tag("tt").find().ok_or_else(|| Error::NoSha)?.text();
+            .ok_or(Error::NoSha)?;
+        let sha = found.tag("tt").find().ok_or(Error::NoSha)?.text();
         Ok(sha)
     }
     /// Constructs the url for the version
@@ -91,12 +90,13 @@ impl GoVersion {
         let style = indicatif::ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("#>-");
-        let path_str = output.to_str().ok_or_else(|| Error::PathBufErr)?;
+        let path_str = output.to_str().ok_or(Error::PathBufErr)?;
         let pb = ProgressBar::new(100);
         pb.set_style(style); 
         let client = reqwest::Client::new();
+        let filename = manic::downloader::get_filename(&self.dl_url)?;
         downloader::download_verify_and_save(&client, &self.dl_url, workers, &self.sha256, path_str, pb).await?;
-        Ok(output)
+        Ok(output.join(filename))
     }
     /// Constructs the latest GoVersion
     pub async fn latest() -> Result<Self, Error> {

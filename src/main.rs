@@ -61,7 +61,7 @@ async fn main() -> Result<(), Error> {
 }
 
 fn parse_version(src: &str) -> Result<Versioning, Error> {
-    Versioning::new(src).ok_or_else(|| Error::VersParse)
+    Versioning::new(src).ok_or(Error::VersParse)
 }
 
 fn ask_for_version(term: &Term) -> Result<Versioning, Error> {
