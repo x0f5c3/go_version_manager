@@ -1,12 +1,12 @@
 [package]
-name = "golang_downloader"
+name = "go_version_manager"
 version = "0.5.0"
 authors = ["x0f5c3 <x0f5c3@tutanota.com>"]
 edition = "2018"
 description = "A small program to download chosen golang version"
 readme = "README.md"
-homepage = "https://github.com/x0f5c3/golang_downloader"
-repository = "https://github.com/x0f5c3/golang_downloader"
+homepage = "https://github.com/x0f5c3/go_version_manager"
+repository = "https://github.com/x0f5c3/go_version_manager"
 license-file = "LICENSE"
 keywords = ["golang","packages","download"]
 categories = ["command-line-utilities","development-tools"]
@@ -20,13 +20,15 @@ tokio = { version = "*", features = ["full"]}
 sha2 = "*"
 duct = "*"
 versions = "*"
-indicatif = "*"
+indicatif = "0.15.0"
 human-panic = "*"
 structopt = "*"
 console = "*"
 anyhow = "*"
 quit = "*"
-
+manic = { version = "*", features = ["progress"] }
+thiserror = "1.0.22"
+git2 = "*"
 [dependencies.reqwest]
 version = "*"
 default-features = false
@@ -34,4 +36,4 @@ features = ["rustls-tls"]
 
 
 [badges]
-github = { repository = "x0f5c3/golang_downloader" }
+github = { repository = "x0f5c3/go_version_manager" }
