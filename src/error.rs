@@ -15,8 +15,6 @@ pub enum Error {
     PathBufErr,
     #[error("Failed to get version")]
     NoVersion,
-    #[error("Git error: {0}")]
-    GitError(#[from] git2::Error),
     #[error("No sha256 found")]
     NoSha,
     #[error("Failed to parse version")]

@@ -2,19 +2,10 @@
 
 
 # v0.7.0 (2020-12-24):
+- [Removed] libgit due to dependency on openssl
 - [Added] interactive mode, choosing version
-- [Added] new options to git journal
-- [Changed] git journal
 - [Feature] add option to choose specific version
-- [Removed] test download
-- [Modified] gitignore to exclude target
-- [Feature] Use manic and switch to libgit
-- [Update] main.rs
-- [Update] README.md
-- [Add] new version to changelog
-- [Add] codecov badge
-- [Added] new changelog, modified gitignore, formatted
-- [Removed] openssl to easier compile on musl targets
+- [Feature] Use manic
 
 # v0.6.5 (2020-12-11):
 - [Removed] openssl to easier compile on musl targets
