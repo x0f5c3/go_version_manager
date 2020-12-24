@@ -179,6 +179,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "colored"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4ffc801dacf156c5854b9df4f425a626539c3a6ef7893cc0c5084a23f0b6c59"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "console"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -398,17 +409,18 @@ dependencies = [
 
 [[package]]
 name = "go_version_manager"
-version = "0.5.0"
+version = "0.7.0"
 dependencies = [
+ "colored",
  "console",
  "dialoguer",
  "git2",
  "human-panic",
  "indicatif",
+ "leg",
  "manic",
  "quit",
  "reqwest",
- "sha2",
  "soup",
  "structopt",
  "thiserror",
@@ -653,6 +665,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
+name = "leg"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49dba25308800978a221c6384b0ec862a15522de9dfb323d23ed05bc859431b2"
+dependencies = [
+ "colored",
+]
+
+[[package]]
 name = "lexical-core"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -728,9 +749,9 @@ checksum = "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4"
 
 [[package]]
 name = "manic"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90c74bfa98097f6d5b579f43befe701225d7c73a39fdeb979a8bc05bd2eb96f0"
+checksum = "58f0da2c62e7a8c44df917689dd94301065c26f8bb7a1230c8fb0c55500c93eb"
 dependencies = [
  "indicatif",
  "reqwest",
