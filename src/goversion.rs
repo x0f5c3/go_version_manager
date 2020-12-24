@@ -57,7 +57,7 @@ impl GoVersion {
     fn get_latest() -> Result<Versioning, Error> {
         let mut versions = GoVersion::get_versions()?;
         versions.sort_by(|a, b| b.cmp(&a));
-        let latest = versions.first().ok_or_else(|| Error::NoVersion)?.to_owned();
+        let latest = versions.first().ok_or(Error::NoVersion)?.to_owned();
         Ok(latest)
     }
     /// Uses the soup library to extract the checksum from the golang download site
