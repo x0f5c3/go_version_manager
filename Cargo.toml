@@ -24,7 +24,7 @@ structopt = "0.3.21"
 console = "0.13.0"
 manic = { version = "0.2.3", features = ["progress"] }
 thiserror = "1.0.22"
-git2 = "0.13.14"
+git2 = { version = "0.13.14", default-features = false, features = ["https", "vendored-openssl"] }
 dialoguer = "0.7.1"
 quit = "1.1.2"
 leg = "0.4.1"
