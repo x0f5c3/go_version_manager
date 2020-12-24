@@ -42,13 +42,15 @@ impl GoVersion {
         Ok(tags)
     }
     /// Parses the versions into Versioning structs
-    fn get_versions() -> Result<Vec<Versioning>, Error> {
+    pub fn get_versions() -> Result<Vec<Versioning>, Error> {
         let unparsed = Self::get_git_versions()?;
-        let parsed: Vec<Versioning> = unparsed
+        let mut parsed: Vec<Versioning> = unparsed
             .iter()
             .filter_map(|x| Versioning::new(x.as_ref()))
             .filter(|x| x.is_ideal())
             .collect();
+        parsed.sort_unstable();
+        parsed.reverse();
         Ok(parsed)
     }
     /// Gets the latest versions by sorting the parsed versions

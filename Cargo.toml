@@ -1,6 +1,6 @@
 [package]
 name = "go_version_manager"
-version = "0.5.0"
+version = "0.7.0"
 authors = ["x0f5c3 <x0f5c3@tutanota.com>"]
 edition = "2018"
 description = "A small program to download chosen golang version"
@@ -17,19 +17,18 @@ categories = ["command-line-utilities","development-tools"]
 [dependencies]
 soup = "0.5.0"
 tokio = { version = "0.2.5", features = ["full"]}
-sha2 = "0.9.2"
 versions = "2.0.1"
 indicatif = "0.15.0"
 human-panic = "1.0.3"
 structopt = "0.3.21"
 console = "0.13.0"
-manic = { version = "0.2.2", features = ["progress"] }
+manic = { version = "0.2.3", features = ["progress"] }
 thiserror = "1.0.22"
 git2 = "0.13.14"
 dialoguer = "0.7.1"
 quit = "1.1.2"
-
-
+leg = "0.4.1"
+colored = "^1.8.0"
 [dependencies.reqwest]
 version = "0.10.10"
 default-features = false
