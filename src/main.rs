@@ -20,6 +20,8 @@ struct Opt {
     version: Option<Versioning>,
     #[structopt(short, long)]
     interactive: bool,
+    #[structopt(short, long)]
+    git: bool,
 }
 
 /// Reads output path from command line arguments
@@ -31,6 +33,8 @@ async fn main() -> Result<(), Error> {
     let opt = Opt::from_args();
     let term = Term::stdout();
     let git_present = check_git();
+    println!("ARCH: {}", std::env::consts::ARCH);
+    println!("File ext: {}", crate::consts::FILE_EXT);
     let golang = {
         if let Some(vers) = opt.version {
             goversion::GoVersion::version(vers).await?
@@ -38,15 +42,19 @@ async fn main() -> Result<(), Error> {
             let vers = ask_for_version(&term)?;
             goversion::GoVersion::version(vers).await?
         } else {
-            if git_present {
-                goversion::GoVersion::latest().await?
-            } else {
-                leg::error(
+            if opt.git {
+                if git_present {
+                    goversion::GoVersion::latest(true).await?
+                } else {
+                    leg::error(
                     "You requested the latest version and git is not installed, please install git",
                     None,
                     None,
                 );
-                quit::with_code(127);
+                    quit::with_code(127);
+                }
+            } else {
+                goversion::GoVersion::latest(false).await?
             }
         }
     };
@@ -69,7 +77,6 @@ async fn main() -> Result<(), Error> {
         None,
         None,
     );
-
     Ok(())
 }
 
@@ -96,5 +103,7 @@ fn ask_for_version(term: &Term) -> Result<Versioning, Error> {
     }
 }
 
+mod consts;
 mod error;
+mod github;
 mod goversion;
