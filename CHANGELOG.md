@@ -1,5 +1,7 @@
 # Changelog
 
+# v0.7.5 (2020-12-30):
+- [Added] option to use github api or git
 
 # v0.7.0 (2020-12-24):
 - [Removed] libgit due to dependency on openssl
