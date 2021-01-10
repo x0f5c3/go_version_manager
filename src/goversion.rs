@@ -68,7 +68,7 @@ impl GoVersion {
         Ok(parsed)
     }
     /// Gets the latest versions by sorting the parsed versions
-    async fn get_latest(git: bool) -> Result<Versioning, Error> {
+    pub async fn get_latest(git: bool) -> Result<Versioning, Error> {
         let mut versions = if git {
             Self::get_versions()?
         } else {
@@ -171,5 +171,38 @@ pub fn check_git() -> bool {
             std::io::ErrorKind::NotFound => false,
             _ => true,
         },
+    }
+}
+
+pub fn get_local_version() -> Result<Option<Versioning>, Error> {
+    let output = cmd!("go", "version").read();
+    if let Err(e) = output {
+        return if e.kind() == std::io::ErrorKind::NotFound {
+            Ok(None)
+        } else {
+            Err(e.into())
+        };
+    } else if let Ok(vers) = output {
+        let version = vers.split(' ').nth(2);
+        if version.is_none() {
+            return Ok(None);
+        }
+        let somed = version.unwrap().replace("go", "");
+        return Ok(Versioning::new(somed.as_ref()));
+    }
+    Ok(None)
+}
+
+pub async fn check_local_latest(git: bool) -> Result<bool, Error> {
+    let local_vers = get_local_version()?;
+    if local_vers.is_none() {
+        return Ok(false);
+    }
+    let somed = local_vers.unwrap();
+    let latest = GoVersion::get_latest(git).await?;
+    if somed == latest {
+        return Ok(true);
+    } else {
+        return Ok(false);
     }
 }
