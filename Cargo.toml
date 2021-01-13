@@ -16,25 +16,22 @@ categories = ["command-line-utilities","development-tools"]
 
 [dependencies]
 soup = "0.5.0"
-tokio = { version = "0.2.5", features = ["full"]}
+tokio = { version = "^1", features = ["macros"]}
 versions = "2.0.1"
 indicatif = "0.15.0"
 human-panic = "1.0.3"
 structopt = "0.3.21"
-console = "0.13.0"
-manic = { version = "0.2.3", features = ["progress"] }
+console = "0.14.0"
+manic = { git = "https://github.com/x0f5c3/manic", branch = "hyper", features = ["progress", "json", "compress"] }
 thiserror = "1.0.22"
+hyper = { version = "0.14.2", features = ["client", "http1", "http2", "runtime"] }
 dialoguer = "0.7.1"
 quit = "1.1.2"
 duct = "*"
-leg = "0.4.1"
+leg = "1.0.0"
 lazy_static = "*"
 serde = { version = "*", features = ["derive"] }
 colored = "^1.8.0"
-[dependencies.reqwest]
-version = "0.10.10"
-default-features = false
-features = ["rustls-tls", "json"]
 
 
 [badges]
