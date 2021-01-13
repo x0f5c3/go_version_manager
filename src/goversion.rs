@@ -3,8 +3,9 @@ use crate::error::Error;
 use crate::github::Tag;
 use duct::cmd;
 use indicatif::ProgressBar;
-use manic::progress::downloader;
-use reqwest::header::USER_AGENT;
+use manic::Client;
+use manic::Downloader;
+use hyper::header::USER_AGENT;
 use soup::prelude::*;
 use soup::Soup;
 use std::path::PathBuf;
@@ -36,11 +37,10 @@ impl GoVersion {
         Ok(output)
     }
     pub async fn get_gh_version() -> Result<Vec<Versioning>, Error> {
-        let client = reqwest::Client::new();
+        let client = Client::new_rustls();
+        let req = hyper::Request::get("https://api.github.com/repos/golang/go/tags?page=2&per_page=100").header(USER_AGENT, "Get_Tag").body(hyper::Body::empty())?;
         let resp: Vec<Tag> = client
-            .get("https://api.github.com/repos/golang/go/tags?page=2&per_page=100")
-            .header(USER_AGENT, "Get_Tag")
-            .send()
+            .request(req)
             .await?
             .json()
             .await?;
