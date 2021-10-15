@@ -2,45 +2,63 @@ use crate::consts::{DL_URL, FILE_EXT};
 use crate::error::Error;
 use crate::github::Tag;
 use duct::cmd;
-use indicatif::ProgressBar;
 use manic::Client;
 use manic::Downloader;
-use hyper::header::USER_AGENT;
+use reqwest::header::USER_AGENT;
 use soup::prelude::*;
 use soup::Soup;
 use std::path::PathBuf;
 use versions::Versioning;
+use rayon::prelude::*;
+use crate::error::Result;
+use serde::{Deserialize, Serialize};
+use indicatif::ParallelProgressIterator;
 
-/// Golang version represented as a struct
-pub struct GoVersion {
-    /// Holds the golang version
-    pub version: Versioning,
-    /// Holds the download url for the version
-    dl_url: String,
-    /// Holds the sha256 checksum
-    sha256: String,
+
+pub struct GoVersions {
+    pub versions: Vec<GoVersion>,
+    latest: GoVersion,
 }
 
-impl GoVersion {
-    /// Gets golang versions from git tags
-    fn get_git_versions() -> Result<Vec<String>, Error> {
-        let output: Vec<String> =
-            cmd!("git", "ls-remote", "--tags", "https://github.com/golang/go")
-                .read()?
-                .trim()
-                .lines()
-                .filter(|x| x.contains("go"))
-                .filter_map(|x| x.split('\t').nth(1))
-                .filter_map(|x| x.split('/').nth(2))
-                .map(|x| x.replace("go", ""))
-                .collect();
-        Ok(output)
+
+pub enum Downloaded {
+    File(PathBuf),
+    Mem(Vec<u8>),
+}
+
+
+impl GoVersions {
+    pub async fn new(git: bool) -> Result<Self> {
+        let client = Client::new();
+        let mut vers = Self::download_versions(git, &client).await?;
+        vers.sort_by(|a, b| b.version.cmp(&a.version));
+        let latest = vers.first().cloned().ok_or(Error::NoVersion)?;
+        Ok(Self {
+            versions: vers,
+            latest,
+        })
     }
-    pub async fn get_gh_version() -> Result<Vec<Versioning>, Error> {
-        let client = Client::new_rustls();
-        let req = hyper::Request::get("https://api.github.com/repos/golang/go/tags?page=2&per_page=100").header(USER_AGENT, "Get_Tag").body(hyper::Body::empty())?;
+    pub fn latest(&self) -> GoVersion {
+        self.latest.clone()
+    }
+    pub async fn check_local_latest(&self) -> Result<bool> {
+        let local_vers = get_local_version()?;
+        if local_vers.is_none() {
+            return Ok(false);
+        }
+        let somed = local_vers.unwrap();
+        let latest = self.latest().version;
+        if somed == latest {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+    pub async fn gh_versions(client: &Client) -> Result<Vec<Versioning>> {
         let resp: Vec<Tag> = client
-            .request(req)
+            .get("https://api.github.com/repos/golang/go/tags?page=2&per_page=100")
+            .header(USER_AGENT, "Get_Tag")
+            .send()
             .await?
             .json()
             .await?;
@@ -55,10 +73,22 @@ impl GoVersion {
         filtered.reverse();
         Ok(filtered)
     }
-    /// Parses the versions into Versioning structs
-    pub fn get_versions() -> Result<Vec<Versioning>, Error> {
-        let unparsed = Self::get_git_versions()?;
-        let mut parsed: Vec<Versioning> = unparsed
+    /// Gets golang versions from git tags
+    fn raw_git_versions() -> Result<Vec<String>> {
+        let output: Vec<String> =
+            cmd!("git", "ls-remote", "--tags", "https://github.com/golang/go")
+                .read()?
+                .trim()
+                .lines()
+                .filter(|x| x.contains("go"))
+                .filter_map(|x| x.split('\t').nth(1))
+                .filter_map(|x| x.split('/').nth(2))
+                .map(|x| x.replace("go", ""))
+                .collect();
+        Ok(output)
+    }
+    pub fn parse_versions(versions: Vec<String>) -> Result<Vec<Versioning>> {
+        let mut parsed: Vec<Versioning> = versions
             .iter()
             .filter_map(|x| Versioning::new(x.as_ref()))
             .filter(|x| x.is_ideal())
@@ -67,53 +97,59 @@ impl GoVersion {
         parsed.reverse();
         Ok(parsed)
     }
-    /// Gets the latest versions by sorting the parsed versions
-    pub async fn get_latest(git: bool) -> Result<Versioning, Error> {
-        let mut versions = if git {
-            Self::get_versions()?
+    /// Parses the versions into Versioning structs
+    pub async fn download_versions(git: bool, client: &Client) -> Result<Vec<GoVersion>> {
+        let mut parsed: Vec<Versioning> = if git {
+            let unparsed = Self::raw_git_versions()?;
+            Self::parse_versions(unparsed)?
         } else {
-            Self::get_gh_version().await?
+            Self::gh_versions(client).await?
         };
-        versions.sort_by(|a, b| b.cmp(&a));
-        let latest = versions.first().ok_or(Error::NoVersion)?.to_owned();
-        Ok(latest)
+        parsed.sort_unstable();
+        parsed.reverse();
+        let page = client.get(DL_URL).send().await?.text().await?;
+        Ok(parsed.par_iter().progress_count(parsed.len() as u64).filter_map(|x| {
+            let sha = Self::sha(x, &page).ok();
+            if let Some(s) = sha {
+                let url = Self::construct_url(x);
+                Some(GoVersion{
+                    version: x.clone(),
+                    sha256: s,
+                    dl_url: url,
+                })
+            } else {
+                None
+            }
+        }).collect::<Vec<GoVersion>>())
     }
     /// Uses the soup library to extract the checksum from the golang download site
-    async fn get_sha(vers: impl std::fmt::Display) -> Result<String, Error> {
-        let resp = reqwest::get(DL_URL).await?;
-        let soup = Soup::new(&resp.text().await?);
+    fn sha(vers: impl std::fmt::Display, page: &str) -> Result<String> {
+        let soup = Soup::new(page);
         let govers = format!("go{}", vers);
         let gofile = format!("{}.{}", govers, FILE_EXT);
-        println!("{}", gofile);
         let latest = soup
             .tag("div")
             .attr("id", govers)
             .find()
             .ok_or(Error::NoSha)?;
-        println!("Found latest");
         let mut children = latest.tag("tr").find_all().filter(|f| {
             let cls = f.get("class");
-            if cls.is_some() {
-                if cls.unwrap() == "first" {
-                    false
-                } else {
-                    true
-                }
+            if let Some(c) = cls {
+                c != "first"
             } else {
                 true
             }
         });
         let found = children
             .find(|child| {
-                child
-                    .class("filename")
-                    .find()
-                    .unwrap()
-                    .text()
-                    .contains(&gofile)
+                let res = child.class("filename").find();
+                if let Some(s) = res {
+                    s.text().contains(&gofile)
+                } else {
+                    false
+                }
             })
             .ok_or(Error::NoSha)?;
-        println!("Found filename");
         let sha = found.tag("tt").find().ok_or(Error::NoSha)?.text();
         Ok(sha)
     }
@@ -121,60 +157,54 @@ impl GoVersion {
     fn construct_url(vers: impl std::fmt::Display) -> String {
         return format!("{}/go{}.{}", DL_URL, vers, FILE_EXT);
     }
+    pub fn chosen_version(&self, vers: Versioning) -> Result<GoVersion> {
+        let res = self.versions.iter().find(|x| x.version == vers).ok_or(Error::NoVersion)?;
+        Ok(res.clone())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+/// Golang version represented as a struct
+pub struct GoVersion {
+    /// Holds the golang version
+    pub version: Versioning,
+    /// Holds the download url for the version
+    pub dl_url: String,
+    /// Holds the sha256 checksum
+    sha256: String,
+}
+
+impl GoVersion {
     /// Downloads the required version async
-    pub async fn download(&self, output: PathBuf, workers: u8) -> Result<PathBuf, Error> {
+    pub async fn download(&self, output: Option<PathBuf>, workers: u8) -> Result<Downloaded> {
         let style = indicatif::ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("#>-");
-        let path_str = output.to_str().ok_or(Error::PathBufErr)?;
-        let pb = ProgressBar::new(100);
-        pb.set_style(style);
-        let client = reqwest::Client::new();
-        let filename = manic::downloader::get_filename(&self.dl_url)?;
-        downloader::download_verify_and_save(
-            &client,
-            &self.dl_url,
-            workers,
-            &self.sha256,
-            path_str,
-            pb,
-        )
-        .await?;
-        Ok(output.join(filename))
-    }
-    /// Constructs the latest GoVersion
-    pub async fn latest(git: bool) -> Result<Self, Error> {
-        let vers = GoVersion::get_latest(git).await?;
-        let url = GoVersion::construct_url(&vers);
-        let sha = GoVersion::get_sha(&vers).await?;
-        Ok(GoVersion {
-            version: vers,
-            dl_url: url,
-            sha256: sha,
-        })
-    }
-    pub async fn version(vers: Versioning) -> Result<Self, Error> {
-        let url = GoVersion::construct_url(&vers);
-        let sha = GoVersion::get_sha(&vers).await?;
-        Ok(GoVersion {
-            version: vers,
-            dl_url: url,
-            sha256: sha,
-        })
+        let mut client = Downloader::new(&self.dl_url, workers).await?;
+        client.progress_bar();
+        let hash = manic::Hash::SHA256(self.sha256.to_string());
+        client.verify(hash);
+        client.bar_style(style);
+        if let Some(path) = output {
+            let path_str = path.to_str().ok_or(Error::PathBufErr)?;
+            let filename = client.filename().to_string();
+            client.download_and_save(path_str, true).await?;
+            Ok(Downloaded::File(path.join(filename)))
+        } else {
+            let res = client.download_and_verify().await?;
+            Ok(Downloaded::Mem(res))
+        }
     }
 }
 
 pub fn check_git() -> bool {
     match cmd!("git", "version").stdout_null().run() {
         Ok(_) => true,
-        Err(e) => match e.kind() {
-            std::io::ErrorKind::NotFound => false,
-            _ => true,
-        },
+        Err(e) => !matches!(e.kind(), std::io::ErrorKind::NotFound),
     }
 }
 
-pub fn get_local_version() -> Result<Option<Versioning>, Error> {
+pub fn get_local_version() -> Result<Option<Versioning>> {
     let output = cmd!("go", "version").read();
     if let Err(e) = output {
         return if e.kind() == std::io::ErrorKind::NotFound {
@@ -193,16 +223,3 @@ pub fn get_local_version() -> Result<Option<Versioning>, Error> {
     Ok(None)
 }
 
-pub async fn check_local_latest(git: bool) -> Result<bool, Error> {
-    let local_vers = get_local_version()?;
-    if local_vers.is_none() {
-        return Ok(false);
-    }
-    let somed = local_vers.unwrap();
-    let latest = GoVersion::get_latest(git).await?;
-    if somed == latest {
-        return Ok(true);
-    } else {
-        return Ok(false);
-    }
-}
