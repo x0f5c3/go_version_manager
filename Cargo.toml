@@ -24,7 +24,8 @@ human-panic = "1.0.3"
 structopt = "0.3.21"
 console = "0.14.0"
 reqwest = { version = "0.11.3", features = ["rustls"] }
-manic = { version = "0.6.3", features = ["progress", "json"] }
+#manic = { git = "https://github.com/x0f5c3/manic", branch = "rssync", features = ["progress", "json"] }
+manic = { version = "*", features = ["progress", "json"] }
 thiserror = "1.0.22"
 dialoguer = "0.8.0"
 quit = "1.1.2"
@@ -34,7 +35,6 @@ rayon = "*"
 lazy_static = "*"
 serde = { version = "*", features = ["derive"] }
 colored = "^2.0.0"
-
 
 [target.'cfg(windows)'.dependencies]
 zip = "*"
