@@ -177,7 +177,7 @@ pub struct GoVersion {
 impl GoVersion {
     /// Downloads the required version async
     pub async fn download(&self, output: Option<PathBuf>, workers: u8) -> Result<Downloaded> {
-        let style = indicatif::ProgressStyle::default_bar()
+        let style = manic::ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("#>-");
         let mut client = Downloader::new(&self.dl_url, workers).await?;
@@ -191,7 +191,7 @@ impl GoVersion {
             client.download_and_save(path_str, true).await?;
             Ok(Downloaded::File(path.join(filename)))
         } else {
-            let res = client.download_and_verify().await?;
+            let res = client.download().await?;
             Ok(Downloaded::Mem(res))
         }
     }
