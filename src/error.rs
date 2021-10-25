@@ -1,8 +1,6 @@
 use thiserror::Error;
 
-
 pub type Result<T> = std::result::Result<T, Error>;
-
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -11,7 +9,7 @@ pub enum Error {
     #[error("Reqwest error: {0}")]
     ReqError(#[from] reqwest::Error),
     #[error("Manic error: {0}")]
-    ManicErr(#[from] manic::Error),
+    ManicErr(#[from] manic::ManicError),
     #[error("Failed to convert Pathbuf to str")]
     PathBufErr,
     #[error("Failed to get version")]
@@ -20,5 +18,4 @@ pub enum Error {
     NoSha,
     #[error("Failed to parse version")]
     VersParse,
-
 }
