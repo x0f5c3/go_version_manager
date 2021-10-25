@@ -1,31 +1,28 @@
 use crate::consts::{DL_URL, FILE_EXT};
 use crate::error::Error;
+use crate::error::Result;
 use crate::github::Tag;
 use duct::cmd;
+use indicatif::ParallelProgressIterator;
 use manic::Client;
 use manic::Downloader;
+use rayon::prelude::*;
 use reqwest::header::USER_AGENT;
+use serde::{Deserialize, Serialize};
 use soup::prelude::*;
 use soup::Soup;
 use std::path::PathBuf;
 use versions::Versioning;
-use rayon::prelude::*;
-use crate::error::Result;
-use serde::{Deserialize, Serialize};
-use indicatif::ParallelProgressIterator;
-
 
 pub struct GoVersions {
     pub versions: Vec<GoVersion>,
     latest: GoVersion,
 }
 
-
 pub enum Downloaded {
     File(PathBuf),
     Mem(Vec<u8>),
 }
-
 
 impl GoVersions {
     pub async fn new(git: bool) -> Result<Self> {
@@ -108,19 +105,23 @@ impl GoVersions {
         parsed.sort_unstable();
         parsed.reverse();
         let page = client.get(DL_URL).send().await?.text().await?;
-        Ok(parsed.par_iter().progress_count(parsed.len() as u64).filter_map(|x| {
-            let sha = Self::sha(x, &page).ok();
-            if let Some(s) = sha {
-                let url = Self::construct_url(x);
-                Some(GoVersion{
-                    version: x.clone(),
-                    sha256: s,
-                    dl_url: url,
-                })
-            } else {
-                None
-            }
-        }).collect::<Vec<GoVersion>>())
+        Ok(parsed
+            .par_iter()
+            .progress_count(parsed.len() as u64)
+            .filter_map(|x| {
+                let sha = Self::sha(x, &page).ok();
+                if let Some(s) = sha {
+                    let url = Self::construct_url(x);
+                    Some(GoVersion {
+                        version: x.clone(),
+                        sha256: s,
+                        dl_url: url,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<GoVersion>>())
     }
     /// Uses the soup library to extract the checksum from the golang download site
     fn sha(vers: impl std::fmt::Display, page: &str) -> Result<String> {
@@ -158,7 +159,11 @@ impl GoVersions {
         return format!("{}/go{}.{}", DL_URL, vers, FILE_EXT);
     }
     pub fn chosen_version(&self, vers: Versioning) -> Result<GoVersion> {
-        let res = self.versions.iter().find(|x| x.version == vers).ok_or(Error::NoVersion)?;
+        let res = self
+            .versions
+            .iter()
+            .find(|x| x.version == vers)
+            .ok_or(Error::NoVersion)?;
         Ok(res.clone())
     }
 }
@@ -182,17 +187,17 @@ impl GoVersion {
             .progress_chars("#>-");
         let mut client = Downloader::new(&self.dl_url, workers).await?;
         client.progress_bar();
-        let hash = manic::Hash::SHA256(self.sha256.to_string());
+        let hash = manic::Hash::new_sha256(self.sha256.to_string());
         client.verify(hash);
         client.bar_style(style);
         if let Some(path) = output {
             let path_str = path.to_str().ok_or(Error::PathBufErr)?;
             let filename = client.filename().to_string();
-            client.download_and_save(path_str, true).await?;
+            client.download_and_save(path_str).await?;
             Ok(Downloaded::File(path.join(filename)))
         } else {
             let res = client.download().await?;
-            Ok(Downloaded::Mem(res))
+            Ok(Downloaded::Mem(res.to_vec().await))
         }
     }
 }
@@ -222,4 +227,3 @@ pub fn get_local_version() -> Result<Option<Versioning>> {
     }
     Ok(None)
 }
-
