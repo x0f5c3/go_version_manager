@@ -24,21 +24,20 @@ human-panic = "1.0.3"
 structopt = "0.3.21"
 console = "0.14.0"
 reqwest = { version = "0.11.3", features = ["rustls"] }
-#manic = { git = "https://github.com/x0f5c3/manic", branch = "rssync", features = ["progress", "json"] }
-manic = { version = "*", features = ["progress", "json"] }
+manic = { version = "0.7.0", features = ["progress", "json"] }
 thiserror = "1.0.22"
 dialoguer = "0.8.0"
 quit = "1.1.2"
-duct = "*"
+duct = "0.13.5"
 leg = "1.0.0"
-rayon = "*"
-lazy_static = "*"
-serde = { version = "*", features = ["derive"] }
+rayon = "1.5.1"
+lazy_static = "1.4.0"
+serde = { version = "1.0.130", features = ["derive"] }
 colored = "^2.0.0"
 
 [target.'cfg(windows)'.dependencies]
-zip = "*"
-zip-extensions = "*"
+zip = "0.5.13"
+zip-extensions = "0.6.1"
 
 [target.'cfg(not(windows))'.dependencies]
 async-compression = { version = "0.3.8", features = ["all"] }
