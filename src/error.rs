@@ -20,5 +20,7 @@ pub enum Error {
     NoSha,
     #[error("Failed to parse version")]
     VersParse,
+    #[error("Failed to deserialize from JSON: {0}")]
+    JSONErr(#[from] serde_json::Error),
 
 }

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use indicatif::ParallelProgressIterator;
 
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GoVersions {
     pub versions: Vec<GoVersion>,
     latest: GoVersion,
@@ -31,7 +32,7 @@ impl GoVersions {
     pub async fn new(git: bool) -> Result<Self> {
         let client = Client::new();
         let mut vers = Self::download_versions(git, &client).await?;
-        vers.sort_by(|a, b| b.version.cmp(&a.version));
+        vers.sort_unstable_by(|a, b| b.version.cmp(&a.version));
         let latest = vers.first().cloned().ok_or(Error::NoVersion)?;
         Ok(Self {
             versions: vers,
@@ -53,6 +54,24 @@ impl GoVersions {
         } else {
             Ok(false)
         }
+    }
+    pub(crate) async fn raw_gh_latest(client: &Client) -> Result<Versioning> {
+        let resp: Vec<Tag> = client
+            .get("https://api.github.com/repos/golang/go/tags?page=2&per_page=100")
+            .header(USER_AGENT, "Get_Tag")
+            .send()
+            .await?
+            .json()
+            .await?;
+        let mut vers: Vec<Versioning> = resp
+            .iter()
+            .filter(|x| x.name.contains("go"))
+            .map(|x| x.name.clone().replace("go", ""))
+            .filter_map(|x| Versioning::new(x.as_ref()))
+            .filter(|x| x.is_ideal())
+            .collect::<Vec<_>>();
+        vers.sort_unstable_by(|a, b| b.cmp(&a));
+        vers.first().cloned().ok_or(Error::NoVersion)
     }
     pub async fn gh_versions(client: &Client) -> Result<Vec<Versioning>> {
         let resp: Vec<Tag> = client
@@ -93,8 +112,7 @@ impl GoVersions {
             .filter_map(|x| Versioning::new(x.as_ref()))
             .filter(|x| x.is_ideal())
             .collect();
-        parsed.sort_unstable();
-        parsed.reverse();
+        parsed.sort_unstable_by(|a, b| b.cmp(&a));
         Ok(parsed)
     }
     /// Parses the versions into Versioning structs

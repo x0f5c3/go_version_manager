@@ -24,9 +24,6 @@ pub(crate) struct Opt {
 }
 
 impl Opt {
-    pub fn new() -> Self {
-        Self::from_args()
-    }
     pub async fn run(&self) -> Result<GoVersion> {
         let term = Term::stdout();
         let git_present = check_git();

@@ -21,15 +21,17 @@ tokio = { version = "^1", features = ["macros"]}
 versions = { version = "3.0.3", features = ["serde"] }
 indicatif = { version = "0.16.0", features = ["rayon", "improved_unicode"] }
 human-panic = "1.0.3"
-structopt = "0.3.21"
+structopt = { version = "0.3.21", features = ["paw"] }
+directories = "4.0.1"
+paw = "*"
 console = "0.14.0"
 reqwest = { version = "0.11.3", features = ["rustls"] }
-#manic = { git = "https://github.com/x0f5c3/manic", branch = "rssync", features = ["progress", "json"] }
 manic = { version = "*", features = ["progress", "json"] }
 thiserror = "1.0.22"
 dialoguer = "0.8.0"
 quit = "1.1.2"
 duct = "*"
+serde_json = "1.0.69"
 leg = "1.0.0"
 rayon = "*"
 lazy_static = "*"

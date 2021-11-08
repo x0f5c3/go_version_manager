@@ -1,6 +1,9 @@
 #![allow(dead_code, clippy::enum_variant_names)]
 //! `go_version_manager` is a small program intended to download the latest or chosen golang version
 //! from the official site also checking the checksum for the file
+#[macro_use]
+extern crate lazy_static;
+
 use colored::Colorize;
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
@@ -14,12 +17,12 @@ use crate::goversion::Downloaded;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
+#[paw::main]
 #[tokio::main]
 #[quit::main]
-async fn main() -> Result<()> {
+async fn main(opt: Opt) -> Result<()> {
     setup_panic!();
     pretty_env_logger::init();
-    let opt = Opt::new();
     let golang = opt.run().await?;
     format!("Downloading golang version {}", &golang.version);
     leg::info(
