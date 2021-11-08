@@ -9,7 +9,7 @@ pub enum Error {
     #[error("Reqwest error: {0}")]
     ReqError(#[from] reqwest::Error),
     #[error("Manic error: {0}")]
-    ManicErr(#[from] manic::Error),
+    ManicErr(#[from] manic::ManicError),
     #[error("Failed to convert Pathbuf to str")]
     PathBufErr,
     #[error("Failed to get version")]
