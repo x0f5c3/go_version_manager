@@ -1,27 +1,43 @@
 use crate::consts::{DEFAULT_INSTALL, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
+use crate::decompressor::ToDecompress;
 use crate::error::Error;
 use crate::error::Result;
 use duct::cmd;
 use git2::{Direction, Remote};
-use indicatif::ParallelProgressIterator;
 use manic::Client;
 use manic::Downloader;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use soup::prelude::*;
 use soup::Soup;
+use std::io::{BufReader, Cursor, Write};
 use std::path::{Path, PathBuf};
-use versions::Versioning;
+use versions::{SemVer, Versioning};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GoVersions {
-    pub versions: Vec<GoVersion>,
     latest: GoVersion,
+    pub versions: Vec<GoVersion>,
 }
 
 pub enum Downloaded {
     File(PathBuf),
     Mem(Vec<u8>),
+}
+
+impl Downloaded {
+    fn unpack(&self, path: &Path) -> Result<()> {
+        match self {
+            Self::Mem(v) => {
+                let mut r = ToDecompress::new(Cursor::new(v))?;
+                r.extract(path)
+            }
+            Self::File(p) => {
+                let mut r = ToDecompress::new(BufReader::new(std::fs::File::open(p)?))?;
+                r.extract(path)
+            }
+        }
+    }
 }
 
 impl GoVersions {
@@ -40,13 +56,14 @@ impl GoVersions {
             .create(true)
             .write(true)
             .open(path)?;
-        serde_json::to_writer(&mut file, &self)?;
+        let to_write = serde_json::to_string_pretty(&self)?;
+        file.write_all(to_write.as_bytes())?;
         file.sync_all()?;
         Ok(())
     }
-    pub async fn new(list_path: Option<&Path>) -> Result<Self> {
+    pub fn new(list_path: Option<&Path>) -> Result<Self> {
         let client = Client::new();
-        let latest = Self::download_latest().await?;
+        let latest = Self::download_latest()?;
         let path = if let Some(p) = list_path {
             p
         } else {
@@ -58,20 +75,21 @@ impl GoVersions {
                 return Ok(to_cmp);
             }
         }
-        let mut vers = Self::download_versions(&client).await?;
+        let mut vers = Self::download_versions(&client)?;
         vers.par_sort_unstable_by(|a, b| b.version.cmp(&a.version));
         let latest = vers.first().cloned().ok_or(Error::NoVersion)?;
         let res = Self {
             versions: vers,
             latest,
         };
+        println!("{:?}", res);
         res.save(list_path)?;
         Ok(res)
     }
     pub fn latest(&self) -> GoVersion {
         self.latest.clone()
     }
-    pub async fn check_local_latest(&self, path: Option<PathBuf>) -> Result<bool> {
+    pub fn check_local_latest(&self, path: Option<PathBuf>) -> Result<bool> {
         let local_vers = if let Some(p) = path {
             get_local_version(&p)?
         } else {
@@ -101,25 +119,27 @@ impl GoVersions {
             .collect();
         Ok(output)
     }
-    pub fn parse_versions(versions: Vec<String>) -> Result<Vec<Versioning>> {
-        let mut parsed: Vec<Versioning> = versions
+    pub fn parse_versions(versions: Vec<String>) -> Result<Vec<SemVer>> {
+        let mut parsed: Vec<SemVer> = versions
             .iter()
             .filter_map(|x| Versioning::new(x.as_ref()))
-            .filter(|x| x.is_ideal())
+            .filter_map(|x| match x {
+                Versioning::Ideal(s) => Some(s),
+                _ => None,
+            })
             .collect();
         parsed.sort_unstable_by(|a, b| b.cmp(a));
         Ok(parsed)
     }
-    pub async fn download_latest() -> Result<Versioning> {
+    pub fn download_latest() -> Result<SemVer> {
         let latest = GIT_VERSIONS.first().ok_or(Error::NoVersion)?;
         Ok(latest.clone())
     }
     /// Parses the versions into Versioning structs
-    pub async fn download_versions(client: &Client) -> Result<Vec<GoVersion>> {
-        let page = client.get(DL_URL).send().await?.text().await?;
+    pub fn download_versions(client: &Client) -> Result<Vec<GoVersion>> {
+        let page = client.get(DL_URL).send()?.text()?;
         Ok(GIT_VERSIONS
             .par_iter()
-            .progress_count(GIT_VERSIONS.len() as u64)
             .filter_map(|x| {
                 let sha = Self::sha(x, &page).ok();
                 if let Some(s) = sha {
@@ -170,7 +190,7 @@ impl GoVersions {
     fn construct_url(vers: impl std::fmt::Display) -> String {
         return format!("{}/go{}.{}", DL_URL, vers, FILE_EXT);
     }
-    pub fn chosen_version(&self, vers: Versioning) -> Result<GoVersion> {
+    pub fn chosen_version(&self, vers: SemVer) -> Result<GoVersion> {
         let res = self
             .versions
             .par_iter()
@@ -184,7 +204,7 @@ impl GoVersions {
 /// Golang version represented as a struct
 pub struct GoVersion {
     /// Holds the golang version
-    pub version: Versioning,
+    pub version: SemVer,
     /// Holds the download url for the version
     pub dl_url: String,
     /// Holds the sha256 checksum
@@ -192,12 +212,12 @@ pub struct GoVersion {
 }
 
 impl GoVersion {
-    /// Downloads the required version async
-    pub async fn download(&self, output: Option<PathBuf>, workers: u8) -> Result<Downloaded> {
+    /// Downloads the required version
+    pub fn download(&self, output: Option<PathBuf>, workers: u8) -> Result<Downloaded> {
         let style = manic::ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("#>-");
-        let mut client = Downloader::new(&self.dl_url, workers).await?;
+        let mut client = Downloader::new(&self.dl_url, workers)?;
         client.progress_bar();
         let hash = manic::Hash::new_sha256(self.sha256.to_string());
         client.verify(hash);
@@ -205,11 +225,11 @@ impl GoVersion {
         if let Some(path) = output {
             let path_str = path.to_str().ok_or(Error::PathBufErr)?;
             let filename = client.filename().to_string();
-            client.download_and_save(path_str).await?;
+            client.download_and_save(path_str)?;
             Ok(Downloaded::File(path.join(filename)))
         } else {
-            let res = client.download().await?;
-            Ok(Downloaded::Mem(res.to_vec().await))
+            let res = client.download()?;
+            Ok(Downloaded::Mem(res.to_vec()))
         }
     }
 }
@@ -221,7 +241,7 @@ pub fn check_git() -> bool {
     }
 }
 
-pub fn get_local_version(path: &Path) -> Result<Option<Versioning>> {
+pub fn get_local_version(path: &Path) -> Result<Option<SemVer>> {
     let output = cmd!(
         path.join("bin/go").to_str().ok_or(Error::PathBufErr)?,
         "version"
@@ -239,7 +259,7 @@ pub fn get_local_version(path: &Path) -> Result<Option<Versioning>> {
             return Ok(None);
         }
         let somed = version.unwrap().replace("go", "");
-        return Ok(Versioning::new(somed.as_ref()));
+        return Ok(SemVer::new(somed.as_ref()));
     }
     Ok(None)
 }

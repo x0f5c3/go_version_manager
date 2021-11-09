@@ -8,52 +8,41 @@ use crate::command::Opt;
 use crate::error::Result;
 use crate::goversion::Downloaded;
 use crate::goversion::GoVersions;
-use colored::Colorize;
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
 use error::Error;
 use human_panic::setup_panic;
-use versions::Versioning;
+use versions::SemVer;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
 #[paw::main]
-#[tokio::main]
 #[quit::main]
-async fn main(opt: Opt) -> Result<()> {
+fn main(opt: Opt) -> Result<()> {
     setup_panic!();
     pretty_env_logger::init();
-    let golang = opt.run().await?;
-    format!("Downloading golang version {}", &golang.version);
-    leg::info(
-        &format!(
-            "Downloading golang {}",
-            &golang.version.to_string().green().bold()
-        ),
-        None,
-        None,
-    )
-    .await;
-    println!("DL_URL: {}", golang.dl_url);
-    let file_path = golang.download(Some(opt.output), opt.workers).await?;
+    let golang = opt.run()?;
+    paris::info!(
+        "<b><blue>Downloading golang version {}</></b>",
+        &golang.version
+    );
+    let file_path = golang.download(Some(opt.output), opt.workers)?;
     if let Downloaded::File(path) = file_path {
         let path_str = path.to_str().ok_or(Error::PathBufErr)?;
-        leg::success(
-            &format!("Golang has been downloaded to {}", path_str),
-            None,
-            None,
-        )
-        .await;
+        paris::success!(
+            "<b><bright green>Golang has been downloaded to {}</></b>",
+            path_str
+        );
     }
     Ok(())
 }
 
-async fn ask_for_version(term: &Term, versions: &GoVersions) -> Result<Versioning> {
+fn ask_for_version(term: &Term, versions: &GoVersions) -> Result<SemVer> {
     let versions = versions
         .versions
         .iter()
         .map(|x| x.version.clone())
-        .collect::<Vec<Versioning>>();
+        .collect::<Vec<SemVer>>();
     let selection = Select::with_theme(&ColorfulTheme::default())
         .items(&versions)
         .default(0)
@@ -62,12 +51,7 @@ async fn ask_for_version(term: &Term, versions: &GoVersions) -> Result<Versionin
     if let Some(index) = selection {
         Ok(versions[index].clone())
     } else {
-        leg::error(
-            &format!("{}", "You didn't select anything".red().bold()),
-            None,
-            None,
-        )
-        .await;
+        paris::error!("<bold><red>You didn't select anything</red></bold>");
         quit::with_code(127);
     }
 }
