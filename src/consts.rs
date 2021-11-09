@@ -1,6 +1,6 @@
 use crate::GoVersions;
 use std::path::PathBuf;
-use versions::SemVer;
+use versions::Versioning;
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 pub const FILE_EXT: &str = "linux-amd64.tar.gz";
@@ -37,15 +37,15 @@ pub const PATH_SEPERATOR: &str = ":";
 
 lazy_static! {
     pub static ref CONFIG_DIR: PathBuf = {
-        let dirs = directories::ProjectDirs::from("rs", "", "Go Manager").unwrap();
+        let dirs = directories::ProjectDirs::from("com", "x0f5c3", "Go Manager").unwrap();
         let res = dirs.config_dir().to_path_buf();
         if !res.exists() {
             std::fs::create_dir_all(&res).unwrap();
         }
         res
     };
-    pub static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.json");
-    pub static ref VERSION_LIST: PathBuf = CONFIG_DIR.join("versions.json");
+    pub static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.toml");
+    pub static ref VERSION_LIST: PathBuf = CONFIG_DIR.join("versions.toml");
     pub static ref DEFAULT_INSTALL: PathBuf = {
         if cfg!(windows) {
             PathBuf::from("C:\\Go")
@@ -53,7 +53,7 @@ lazy_static! {
             PathBuf::from("/usr/local/go")
         }
     };
-    pub static ref GIT_VERSIONS: Vec<SemVer> = {
+    pub static ref GIT_VERSIONS: Vec<Versioning> = {
         let output = GoVersions::raw_git_versions().unwrap();
         GoVersions::parse_versions(output).unwrap()
     };
