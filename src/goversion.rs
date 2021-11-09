@@ -1,14 +1,12 @@
 use crate::consts::{DEFAULT_INSTALL, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
 use crate::error::Error;
 use crate::error::Result;
-use crate::github::Tag;
 use duct::cmd;
 use git2::{Direction, Remote};
 use indicatif::ParallelProgressIterator;
 use manic::Client;
 use manic::Downloader;
 use rayon::prelude::*;
-use reqwest::header::USER_AGENT;
 use serde::{Deserialize, Serialize};
 use soup::prelude::*;
 use soup::Soup;
@@ -89,24 +87,6 @@ impl GoVersions {
         } else {
             Ok(false)
         }
-    }
-    pub async fn gh_versions(client: &Client) -> Result<Vec<Versioning>> {
-        let resp: Vec<Tag> = client
-            .get("https://api.github.com/repos/golang/go/tags?page=2&per_page=100")
-            .header(USER_AGENT, "Get_Tag")
-            .send()
-            .await?
-            .json()
-            .await?;
-        let mut filtered: Vec<Versioning> = resp
-            .iter()
-            .filter(|x| x.name.contains("go"))
-            .map(|x| x.name.clone().replace("go", ""))
-            .filter_map(|x| Versioning::new(x.as_ref()))
-            .filter(|x| x.is_ideal())
-            .collect::<Vec<_>>();
-        filtered.par_sort_unstable_by(|a, b| b.cmp(a));
-        Ok(filtered)
     }
     /// Gets golang versions from git tags
     pub fn raw_git_versions() -> Result<Vec<String>> {

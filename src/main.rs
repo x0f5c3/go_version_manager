@@ -77,5 +77,4 @@ mod config;
 mod consts;
 mod decompressor;
 mod error;
-mod github;
 mod goversion;
