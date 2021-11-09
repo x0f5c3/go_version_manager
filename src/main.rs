@@ -4,16 +4,16 @@
 #[macro_use]
 extern crate lazy_static;
 
+use crate::command::Opt;
+use crate::error::Result;
+use crate::goversion::Downloaded;
+use crate::goversion::GoVersions;
 use colored::Colorize;
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
 use error::Error;
 use human_panic::setup_panic;
 use versions::Versioning;
-use crate::command::Opt;
-use crate::error::Result;
-use crate::goversion::GoVersions;
-use crate::goversion::Downloaded;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
@@ -32,7 +32,8 @@ async fn main(opt: Opt) -> Result<()> {
         ),
         None,
         None,
-    ).await;
+    )
+    .await;
     println!("DL_URL: {}", golang.dl_url);
     let file_path = golang.download(Some(opt.output), opt.workers).await?;
     if let Downloaded::File(path) = file_path {
@@ -41,15 +42,18 @@ async fn main(opt: Opt) -> Result<()> {
             &format!("Golang has been downloaded to {}", path_str),
             None,
             None,
-        ).await;
+        )
+        .await;
     }
     Ok(())
 }
 
-
-
 async fn ask_for_version(term: &Term, versions: &GoVersions) -> Result<Versioning> {
-    let versions = versions.versions.iter().map(|x| x.version.clone()).collect::<Vec<Versioning>>();
+    let versions = versions
+        .versions
+        .iter()
+        .map(|x| x.version.clone())
+        .collect::<Vec<Versioning>>();
     let selection = Select::with_theme(&ColorfulTheme::default())
         .items(&versions)
         .default(0)
@@ -62,15 +66,16 @@ async fn ask_for_version(term: &Term, versions: &GoVersions) -> Result<Versionin
             &format!("{}", "You didn't select anything".red().bold()),
             None,
             None,
-        ).await;
+        )
+        .await;
         quit::with_code(127);
     }
 }
 
+mod command;
+mod config;
 mod consts;
+mod decompressor;
 mod error;
 mod github;
 mod goversion;
-mod command;
-mod config;
-mod decompressor;

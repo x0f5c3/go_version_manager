@@ -1,11 +1,11 @@
-use versions::Versioning;
-use std::path::PathBuf;
-use dialoguer::console::Term;
-use crate::error::Error;
-use structopt::StructOpt;
 use crate::ask_for_version;
-use crate::Result;
+use crate::error::Error;
 use crate::goversion::{check_git, GoVersion, GoVersions};
+use crate::Result;
+use dialoguer::console::Term;
+use std::path::PathBuf;
+use structopt::StructOpt;
+use versions::Versioning;
 
 #[derive(Debug, StructOpt)]
 pub(crate) struct Opt {
@@ -30,9 +30,9 @@ impl Opt {
         println!("ARCH: {}", std::env::consts::ARCH);
         println!("File ext: {}", crate::consts::FILE_EXT);
         let versions: GoVersions = if git_present {
-            GoVersions::new(self.git).await?
+            GoVersions::new(self.git, None).await?
         } else {
-            GoVersions::new(false).await?
+            GoVersions::new(false, None).await?
         };
         let golang = {
             if let Some(vers) = &self.version {
@@ -43,19 +43,18 @@ impl Opt {
                 let chosen: GoVersion = versions.chosen_version(vers)?;
                 chosen
             } else if self.update {
-                let if_latest = versions.check_local_latest().await?;
-                if ! if_latest {
+                let if_latest = versions.check_local_latest(None).await?;
+                if !if_latest {
                     versions.latest()
                 } else {
                     leg::success("You have the latest version installed", None, None).await;
                     quit::with_code(0);
                 }
-            }
-            else {
+            } else {
                 versions.latest()
             }
         };
-    Ok(golang)
+        Ok(golang)
     }
 }
 

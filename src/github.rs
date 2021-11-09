@@ -170,4 +170,3 @@ pub struct Reactions {
     pub rocket: i64,
     pub eyes: i64,
 }
-

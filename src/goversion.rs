@@ -1,8 +1,9 @@
-use crate::consts::{DL_URL, FILE_EXT};
+use crate::consts::{DEFAULT_INSTALL, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
 use crate::error::Error;
 use crate::error::Result;
 use crate::github::Tag;
 use duct::cmd;
+use git2::{Direction, Remote};
 use indicatif::ParallelProgressIterator;
 use manic::Client;
 use manic::Downloader;
@@ -11,7 +12,7 @@ use reqwest::header::USER_AGENT;
 use serde::{Deserialize, Serialize};
 use soup::prelude::*;
 use soup::Soup;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use versions::Versioning;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -26,21 +27,58 @@ pub enum Downloaded {
 }
 
 impl GoVersions {
-    pub async fn new(git: bool) -> Result<Self> {
+    fn from_file(path: &Path) -> Result<Self> {
+        let read = std::fs::read_to_string(path)?;
+        serde_json::from_str(&read).map_err(Error::JSONErr)
+    }
+    fn save(&self, list_path: Option<&Path>) -> Result<()> {
+        let path = if let Some(p) = list_path {
+            p
+        } else {
+            &VERSION_LIST
+        };
+        let mut file = std::fs::OpenOptions::new()
+            .truncate(true)
+            .create(true)
+            .write(true)
+            .open(path)?;
+        serde_json::to_writer(&mut file, &self)?;
+        file.sync_all()?;
+        Ok(())
+    }
+    pub async fn new(git: bool, list_path: Option<&Path>) -> Result<Self> {
         let client = Client::new();
+        let latest = Self::download_latest(git, &client).await?;
+        let path = if let Some(p) = list_path {
+            p
+        } else {
+            &VERSION_LIST
+        };
+        if path.exists() {
+            let to_cmp = Self::from_file(path)?;
+            if to_cmp.latest.version == latest {
+                return Ok(to_cmp);
+            }
+        }
         let mut vers = Self::download_versions(git, &client).await?;
         vers.sort_unstable_by(|a, b| b.version.cmp(&a.version));
         let latest = vers.first().cloned().ok_or(Error::NoVersion)?;
-        Ok(Self {
+        let res = Self {
             versions: vers,
             latest,
-        })
+        };
+        res.save(list_path)?;
+        Ok(res)
     }
     pub fn latest(&self) -> GoVersion {
         self.latest.clone()
     }
-    pub async fn check_local_latest(&self) -> Result<bool> {
-        let local_vers = get_local_version()?;
+    pub async fn check_local_latest(&self, path: Option<PathBuf>) -> Result<bool> {
+        let local_vers = if let Some(p) = path {
+            get_local_version(&p)?
+        } else {
+            get_local_version(&DEFAULT_INSTALL)?
+        };
         if local_vers.is_none() {
             return Ok(false);
         }
@@ -51,24 +89,6 @@ impl GoVersions {
         } else {
             Ok(false)
         }
-    }
-    pub(crate) async fn raw_gh_latest(client: &Client) -> Result<Versioning> {
-        let resp: Vec<Tag> = client
-            .get("https://api.github.com/repos/golang/go/tags?page=2&per_page=100")
-            .header(USER_AGENT, "Get_Tag")
-            .send()
-            .await?
-            .json()
-            .await?;
-        let mut vers: Vec<Versioning> = resp
-            .iter()
-            .filter(|x| x.name.contains("go"))
-            .map(|x| x.name.clone().replace("go", ""))
-            .filter_map(|x| Versioning::new(x.as_ref()))
-            .filter(|x| x.is_ideal())
-            .collect::<Vec<_>>();
-        vers.sort_unstable_by(|a, b| b.cmp(&a));
-        vers.first().cloned().ok_or(Error::NoVersion)
     }
     pub async fn gh_versions(client: &Client) -> Result<Vec<Versioning>> {
         let resp: Vec<Tag> = client
@@ -85,22 +105,20 @@ impl GoVersions {
             .filter_map(|x| Versioning::new(x.as_ref()))
             .filter(|x| x.is_ideal())
             .collect::<Vec<_>>();
-        filtered.sort_unstable();
-        filtered.reverse();
+        filtered.par_sort_unstable_by(|a, b| b.cmp(a));
         Ok(filtered)
     }
     /// Gets golang versions from git tags
     fn raw_git_versions() -> Result<Vec<String>> {
-        let output: Vec<String> =
-            cmd!("git", "ls-remote", "--tags", "https://github.com/golang/go")
-                .read()?
-                .trim()
-                .lines()
-                .filter(|x| x.contains("go"))
-                .filter_map(|x| x.split('\t').nth(1))
-                .filter_map(|x| x.split('/').nth(2))
-                .map(|x| x.replace("go", ""))
-                .collect();
+        let mut remote = Remote::create_detached("https://github.com/golang/go")?;
+        let conn = remote.connect_auth(Direction::Fetch, None, None)?;
+        let output = conn
+            .list()?
+            .iter()
+            .map(|x| x.name().to_string())
+            .filter(|x| x.starts_with("refs/tags/go"))
+            .map(|x| x.replace("refs/tags/go", ""))
+            .collect();
         Ok(output)
     }
     pub fn parse_versions(versions: Vec<String>) -> Result<Vec<Versioning>> {
@@ -109,19 +127,25 @@ impl GoVersions {
             .filter_map(|x| Versioning::new(x.as_ref()))
             .filter(|x| x.is_ideal())
             .collect();
-        parsed.sort_unstable_by(|a, b| b.cmp(&a));
+        parsed.sort_unstable_by(|a, b| b.cmp(a));
         Ok(parsed)
     }
-    /// Parses the versions into Versioning structs
-    pub async fn download_versions(git: bool, client: &Client) -> Result<Vec<GoVersion>> {
-        let mut parsed: Vec<Versioning> = if git {
-            let unparsed = Self::raw_git_versions()?;
-            Self::parse_versions(unparsed)?
+    pub async fn versions(git: bool, client: &Client) -> Result<Vec<Versioning>> {
+        let res = if git {
+            GIT_VERSIONS.clone()
         } else {
             Self::gh_versions(client).await?
         };
-        parsed.sort_unstable();
-        parsed.reverse();
+        Ok(res)
+    }
+    pub async fn download_latest(git: bool, client: &Client) -> Result<Versioning> {
+        let vers = Self::versions(git, client).await?;
+        let latest = vers.first().ok_or(Error::NoVersion)?;
+        Ok(latest.clone())
+    }
+    /// Parses the versions into Versioning structs
+    pub async fn download_versions(git: bool, client: &Client) -> Result<Vec<GoVersion>> {
+        let parsed = Self::versions(git, client).await?;
         let page = client.get(DL_URL).send().await?.text().await?;
         Ok(parsed
             .par_iter()
@@ -227,8 +251,12 @@ pub fn check_git() -> bool {
     }
 }
 
-pub fn get_local_version() -> Result<Option<Versioning>> {
-    let output = cmd!("go", "version").read();
+pub fn get_local_version(path: &Path) -> Result<Option<Versioning>> {
+    let output = cmd!(
+        path.join("bin/go").to_str().ok_or(Error::PathBufErr)?,
+        "version"
+    )
+    .read();
     if let Err(e) = output {
         return if e.kind() == std::io::ErrorKind::NotFound {
             Ok(None)

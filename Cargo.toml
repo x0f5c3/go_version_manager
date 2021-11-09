@@ -25,7 +25,8 @@ structopt = { version = "0.3.21", features = ["paw"] }
 directories = "4.0.1"
 paw = "*"
 console = "0.14.0"
-reqwest = { version = "0.11.3", features = ["rustls"] }
+git2 = { version = "*", features = ["vendored-libgit2"] }
+reqwest = { version = "0.11.3", features = ["rustls", "blocking"] }
 manic = { version = "*", features = ["progress", "json"] }
 thiserror = "1.0.22"
 dialoguer = "0.8.0"

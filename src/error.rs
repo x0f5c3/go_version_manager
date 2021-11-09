@@ -20,5 +20,6 @@ pub enum Error {
     VersParse,
     #[error("Failed to deserialize from JSON: {0}")]
     JSONErr(#[from] serde_json::Error),
-
+    #[error("Git error: {0}")]
+    GITErr(#[from] git2::Error),
 }

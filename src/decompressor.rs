@@ -6,12 +6,10 @@ use tokio::io::AsyncBufRead;
 
 struct ToDecompress<R>
 where
- R: Read + Seek + AsyncBufRead
+    R: Read + Seek + AsyncBufRead,
 {
     #[cfg(target_os = "windows")]
     decompressor: zip::ZipArchive<R>,
     #[cfg(not(target_os = "windows"))]
     decompressor: GzipDecoder<R>,
 }
-
-
