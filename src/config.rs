@@ -17,11 +17,7 @@ impl Config {
         let conf = fs::read_to_string(&path)?;
         serde_json::from_str(&conf).map_err(Error::JSONErr)
     }
-    pub async fn new(
-        install_path: PathBuf,
-        config_path: Option<PathBuf>,
-        git: bool,
-    ) -> Result<Self> {
+    pub async fn new(install_path: PathBuf, config_path: Option<PathBuf>) -> Result<Self> {
         let new_path: PathBuf;
         if let Some(p) = config_path {
             if p.exists() {
@@ -36,7 +32,7 @@ impl Config {
         }
         let vers = get_local_version(&DEFAULT_INSTALL)?;
         let govers = if let Some(v) = vers {
-            Some(GoVersions::new(git, None).await?.chosen_version(v)?)
+            Some(GoVersions::new(None).await?.chosen_version(v)?)
         } else {
             None
         };

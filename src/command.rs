@@ -19,8 +19,6 @@ pub(crate) struct Opt {
     pub version: Option<Versioning>,
     #[structopt(short, long)]
     pub interactive: bool,
-    #[structopt(short, long)]
-    pub git: bool,
 }
 
 impl Opt {
@@ -29,11 +27,7 @@ impl Opt {
         let git_present = check_git();
         println!("ARCH: {}", std::env::consts::ARCH);
         println!("File ext: {}", crate::consts::FILE_EXT);
-        let versions: GoVersions = if git_present {
-            GoVersions::new(self.git, None).await?
-        } else {
-            GoVersions::new(false, None).await?
-        };
+        let versions = GoVersions::new(None).await?;
         let golang = {
             if let Some(vers) = &self.version {
                 let chosen: GoVersion = versions.chosen_version(vers.clone())?;

@@ -1,4 +1,4 @@
-use git2::{Direction, Remote};
+use crate::GoVersions;
 use std::path::PathBuf;
 use versions::Versioning;
 
@@ -54,22 +54,7 @@ lazy_static! {
         }
     };
     pub static ref GIT_VERSIONS: Vec<Versioning> = {
-        let mut remote = Remote::create_detached("https://github.com/golang/go").unwrap();
-        let conn = remote.connect_auth(Direction::Fetch, None, None).unwrap();
-        let output: Vec<String> = conn
-            .list()
-            .unwrap()
-            .iter()
-            .map(|x| x.name().to_string())
-            .filter(|x| x.starts_with("refs/tags/go"))
-            .map(|x| x.replace("refs/tags/go", ""))
-            .collect();
-        let mut parsed: Vec<Versioning> = output
-            .iter()
-            .filter_map(|x| Versioning::new(x.as_ref()))
-            .filter(|x| x.is_ideal())
-            .collect();
-        parsed.sort_unstable_by(|a, b| b.cmp(a));
-        parsed
+        let output = GoVersions::raw_git_versions().unwrap();
+        GoVersions::parse_versions(output).unwrap()
     };
 }
