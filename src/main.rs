@@ -5,6 +5,7 @@
 extern crate lazy_static;
 
 use crate::command::Opt;
+use crate::consts::FILE_EXT;
 use crate::error::Result;
 use crate::goversion::Downloaded;
 use crate::goversion::GoVersions;
@@ -13,7 +14,6 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use error::Error;
 use human_panic::setup_panic;
 use versions::SemVer;
-use crate::consts::FILE_EXT;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it

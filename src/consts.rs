@@ -42,7 +42,7 @@ lazy_static! {
             "macos" => "darwin",
             "linux" => "linux",
             "freebsd" => "freebsd",
-            x => panic!("OS {} not supported", x)
+            x => panic!("OS {} not supported", x),
         };
         let arch = match std::env::consts::ARCH {
             "x86_64" => "amd64",

@@ -6,8 +6,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("IOError")]
     IOError(#[from] std::io::Error),
-    #[error("Reqwest error: {0}")]
-    ReqError(#[from] reqwest::Error),
+    // #[error("Reqwest error: {0}")]
+    // ReqError(#[from] reqwest::Error),
     #[error("Manic error: {0}")]
     ManicErr(#[from] manic::ManicError),
     #[error("Failed to convert Pathbuf to str")]

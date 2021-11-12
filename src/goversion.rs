@@ -136,7 +136,12 @@ impl GoVersions {
     }
     /// Parses the versions into Versioning structs
     pub fn download_versions(client: &Client) -> Result<Vec<GoVersion>> {
-        let page = client.get(DL_URL).send()?.text()?;
+        let page = client
+            .get(DL_URL)
+            .send()
+            .map_err(manic::ManicError::from)?
+            .text()
+            .map_err(manic::ManicError::from)?;
         Ok(GIT_VERSIONS
             .par_iter()
             .filter_map(|x| {

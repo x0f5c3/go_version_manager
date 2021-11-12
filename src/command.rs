@@ -7,7 +7,6 @@ use dialoguer::console::Term;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use versions::SemVer;
-
 #[derive(Debug, StructOpt)]
 pub(crate) struct Opt {
     #[structopt(parse(from_os_str))]
@@ -20,6 +19,40 @@ pub(crate) struct Opt {
     pub version: Option<SemVer>,
     #[structopt(short, long)]
     pub interactive: bool,
+    #[structopt(subcommand)]
+    cmd: Command,
+}
+
+#[derive(Debug, StructOpt)]
+pub(crate) enum Command {
+    Init {
+        #[structopt(short, long, parse(from_os_str))]
+        config_path: Option<PathBuf>,
+        #[structopt(parse(from_os_str))]
+        install_path: Option<PathBuf>,
+    },
+    Update {
+        #[structopt(short, long)]
+        workers: Option<u8>,
+    },
+    Install {
+        #[structopt(short, long)]
+        workers: Option<u8>,
+        #[structopt(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
+        version: Option<SemVer>,
+        #[structopt(short, long)]
+        interactive: bool,
+    },
+    Download {
+        #[structopt(parse(from_os_str))]
+        output: PathBuf,
+        #[structopt(short, long, default_value = "2")]
+        workers: u8,
+        #[structopt(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
+        version: Option<SemVer>,
+        #[structopt(short, long)]
+        interactive: bool,
+    },
 }
 
 impl Opt {

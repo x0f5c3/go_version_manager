@@ -25,7 +25,7 @@ directories = "4.0.1"
 paw = "*"
 console = "0.14.0"
 git2 = { version = "*", features = ["vendored-libgit2"] }
-reqwest = { version = "0.11.3", features = ["rustls", "blocking"] }
+#reqwest = { version = "0.11.3", features = ["rustls", "blocking"] }
 thiserror = "1.0.22"
 dialoguer = "0.8.0"
 quit = "1.1.2"
@@ -43,6 +43,10 @@ tar = "*"
 version = "*"
 default-features = false
 features = ["progress", "json", "threaded"]
+#[dependencies.reqwest]
+#version = "*"
+#default-features = false
+#features = ["rustls-tls", "blocking"]
 
 [target.'cfg(windows)'.dependencies]
 zip = "*"
