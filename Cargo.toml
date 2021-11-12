@@ -20,7 +20,7 @@ pretty_env_logger = "0.4.0"
 versions = { version = "3.0.3", features = ["serde"] }
 indicatif = { version = "0.16.0", features = ["rayon", "improved_unicode"] }
 human-panic = "1.0.3"
-structopt = { version = "0.3.21", features = ["paw"] }
+structopt = { version = "0.3.21", features = ["paw", "wrap_help"] }
 directories = "4.0.1"
 paw = "*"
 console = "0.14.0"

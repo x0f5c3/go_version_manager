@@ -53,6 +53,11 @@ pub(crate) enum Command {
         #[structopt(short, long)]
         interactive: bool,
     },
+    Completetions {
+        shell: structopt::clap::Shell,
+        #[structopt(parse(from_os_str))]
+        out_dir: PathBuf,
+    }
 }
 
 impl Opt {
