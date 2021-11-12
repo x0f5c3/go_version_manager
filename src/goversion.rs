@@ -43,7 +43,7 @@ impl Downloaded {
 impl GoVersions {
     fn from_file(path: &Path) -> Result<Self> {
         let read = std::fs::read_to_string(path)?;
-        serde_json::from_str(&read).map_err(Error::JSONErr)
+        toml_edit::de::from_str(&read).map_err(Error::TOMLDeErr)
     }
     fn save(&self, list_path: Option<&Path>) -> Result<()> {
         let path = if let Some(p) = list_path {
@@ -56,7 +56,7 @@ impl GoVersions {
             .create(true)
             .write(true)
             .open(path)?;
-        let to_write = serde_json::to_string_pretty(&self)?;
+        let to_write = toml_edit::ser::to_string_pretty(&self)?;
         file.write_all(to_write.as_bytes())?;
         file.sync_all()?;
         Ok(())
@@ -82,7 +82,6 @@ impl GoVersions {
             versions: vers,
             latest,
         };
-        println!("{:?}", res);
         res.save(list_path)?;
         Ok(res)
     }
@@ -159,7 +158,7 @@ impl GoVersions {
     fn sha(vers: impl std::fmt::Display, page: &str) -> Result<String> {
         let soup = Soup::new(page);
         let govers = format!("go{}", vers);
-        let gofile = format!("{}.{}", govers, FILE_EXT);
+        let gofile = format!("{}.{}", govers, FILE_EXT.as_str());
         let latest = soup
             .tag("div")
             .attr("id", govers)
@@ -188,7 +187,7 @@ impl GoVersions {
     }
     /// Constructs the url for the version
     fn construct_url(vers: impl std::fmt::Display) -> String {
-        return format!("{}/go{}.{}", DL_URL, vers, FILE_EXT);
+        return format!("{}/go{}.{}", DL_URL, vers, FILE_EXT.as_str());
     }
     pub fn chosen_version(&self, vers: SemVer) -> Result<GoVersion> {
         let res = self

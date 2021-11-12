@@ -13,13 +13,16 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use error::Error;
 use human_panic::setup_panic;
 use versions::SemVer;
+use crate::consts::FILE_EXT;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
 #[paw::main]
 #[quit::main]
 fn main(opt: Opt) -> Result<()> {
+    let now = std::time::Instant::now();
     setup_panic!();
+    lazy_static::initialize(&FILE_EXT);
     pretty_env_logger::init();
     let golang = opt.run()?;
     paris::info!(
@@ -34,6 +37,7 @@ fn main(opt: Opt) -> Result<()> {
             path_str
         );
     }
+    paris::info!("Execution time: {}s", now.elapsed().as_secs_f64());
     Ok(())
 }
 

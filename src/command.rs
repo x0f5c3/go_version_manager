@@ -1,7 +1,7 @@
 use crate::ask_for_version;
 use crate::consts::FILE_EXT;
 use crate::error::Error;
-use crate::goversion::{check_git, GoVersion, GoVersions};
+use crate::goversion::{GoVersion, GoVersions};
 use crate::Result;
 use dialoguer::console::Term;
 use std::path::PathBuf;
@@ -25,13 +25,12 @@ pub(crate) struct Opt {
 impl Opt {
     pub fn run(&self) -> Result<GoVersion> {
         let term = Term::stdout();
-        let git_present = check_git();
         let versions = GoVersions::new(None)?;
         let golang = {
             if let Some(vers) = &self.version {
                 let chosen: GoVersion = versions.chosen_version(vers.clone())?;
                 chosen
-            } else if self.interactive && git_present {
+            } else if self.interactive {
                 let vers = ask_for_version(&term, &versions)?;
                 let chosen: GoVersion = versions.chosen_version(vers)?;
                 chosen
@@ -50,7 +49,7 @@ impl Opt {
         paris::info!(
             "<b><bright blue>Filename: go{}.{}</></b>",
             golang.version,
-            FILE_EXT
+            FILE_EXT.as_str()
         );
         Ok(golang)
     }
