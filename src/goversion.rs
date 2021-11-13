@@ -70,7 +70,7 @@ impl GoVersions {
         };
         if path.exists() {
             let to_cmp = Self::from_file(path)?;
-            if to_cmp.latest.version == latest {
+            if to_cmp.latest.version == latest.version {
                 return Ok(to_cmp);
             }
         }
