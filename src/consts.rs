@@ -67,6 +67,8 @@ lazy_static! {
         }
         res
     };
+    pub static ref CLIENT: manic::Client = manic::Client::new();
+    pub static ref DL_PAGE: String = CLIENT.get(DL_URL).send().unwrap().text().unwrap();
     pub static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.toml");
     pub static ref VERSION_LIST: PathBuf = CONFIG_DIR.join("versions.toml");
     pub static ref DEFAULT_INSTALL: PathBuf = {

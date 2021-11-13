@@ -626,6 +626,7 @@ dependencies = [
  "indicatif",
  "lazy_static",
  "manic",
+ "num_cpus",
  "paris",
  "paw",
  "pretty_env_logger",

@@ -1,10 +1,9 @@
-use crate::consts::{DEFAULT_INSTALL, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
+use crate::consts::{DEFAULT_INSTALL, DL_PAGE, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
 use crate::decompressor::ToDecompress;
 use crate::error::Error;
 use crate::error::Result;
 use duct::cmd;
 use git2::{Direction, Remote};
-use manic::Client;
 use manic::Downloader;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -62,7 +61,7 @@ impl GoVersions {
         Ok(())
     }
     pub fn new(list_path: Option<&Path>) -> Result<Self> {
-        let client = Client::new();
+        // let client = Client::new();
         let latest = Self::download_latest()?;
         let path = if let Some(p) = list_path {
             p
@@ -75,7 +74,7 @@ impl GoVersions {
                 return Ok(to_cmp);
             }
         }
-        let mut vers = Self::download_versions(&client)?;
+        let mut vers = Self::download_versions()?;
         vers.par_sort_unstable_by(|a, b| b.version.cmp(&a.version));
         let latest = vers.first().cloned().ok_or(Error::NoVersion)?;
         let res = Self {
@@ -130,22 +129,23 @@ impl GoVersions {
         parsed.sort_unstable_by(|a, b| b.cmp(a));
         Ok(parsed)
     }
-    pub fn download_latest() -> Result<SemVer> {
+    pub fn download_latest() -> Result<GoVersion> {
         let latest = GIT_VERSIONS.first().ok_or(Error::NoVersion)?;
-        Ok(latest.clone())
+        let govers = Self::download_chosen(latest.clone())?;
+        Ok(govers)
     }
     /// Parses the versions into Versioning structs
-    pub fn download_versions(client: &Client) -> Result<Vec<GoVersion>> {
-        let page = client
-            .get(DL_URL)
-            .send()
-            .map_err(manic::ManicError::from)?
-            .text()
-            .map_err(manic::ManicError::from)?;
+    pub fn download_versions() -> Result<Vec<GoVersion>> {
+        // let page = CLIENT
+        //     .get(DL_URL)
+        //     .send()
+        //     .map_err(manic::ManicError::from)?
+        //     .text()
+        //     .map_err(manic::ManicError::from)?;
         Ok(GIT_VERSIONS
             .par_iter()
             .filter_map(|x| {
-                let sha = Self::sha(x, &page).ok();
+                let sha = Self::sha(x, &DL_PAGE).ok();
                 if let Some(s) = sha {
                     let url = Self::construct_url(x);
                     Some(GoVersion {
@@ -190,6 +190,11 @@ impl GoVersions {
         let sha = found.tag("tt").find().ok_or(Error::NoSha)?.text();
         Ok(sha)
     }
+    pub fn download_chosen(vers: SemVer) -> Result<GoVersion> {
+        let sha = Self::sha(&vers, &DL_PAGE)?;
+        let url = Self::construct_url(&vers);
+        Ok(GoVersion::new(vers, url, sha))
+    }
     /// Constructs the url for the version
     fn construct_url(vers: impl std::fmt::Display) -> String {
         return format!("{}/go{}.{}", DL_URL, vers, FILE_EXT.as_str());
@@ -216,6 +221,13 @@ pub struct GoVersion {
 }
 
 impl GoVersion {
+    pub(crate) fn new(version: SemVer, dl_url: String, sha256: String) -> Self {
+        Self {
+            version,
+            dl_url,
+            sha256,
+        }
+    }
     /// Downloads the required version
     pub fn download(&self, output: Option<PathBuf>, workers: u8) -> Result<Downloaded> {
         let style = manic::ProgressStyle::default_bar()

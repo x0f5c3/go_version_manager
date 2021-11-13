@@ -25,6 +25,7 @@ directories = "4.0.1"
 paw = "*"
 console = "0.14.0"
 git2 = { version = "*", features = ["vendored-libgit2"] }
+num_cpus = "1.13.0"
 #reqwest = { version = "0.11.3", features = ["rustls", "blocking"] }
 thiserror = "1.0.22"
 dialoguer = "0.8.0"
