@@ -104,8 +104,43 @@ impl Command {
                 } else {
                     Err(Error::NoVersion)
                 }
-            }
-            _ => unimplemented!("Unimplemented"),
+            },
+            Self::Completetions(c) => {
+                let mut app: structopt::clap::App = Self::clap();
+                app.gen_completions("go_version_manager", c.shell, c.out_dir);
+                Ok(())
+            },
+            Self::Install(i) => {
+                let install_path = i.install_path.unwrap_or_else(|| DEFAULT_INSTALL.clone());
+                let config_path = i.config_path.unwrap_or_else(|| CONFIG_PATH.clone());
+                let workers = i.workers.unwrap_or_else(|| num_cpus::get() as u8);
+                let c = Config::new(install_path.clone(), config_path)?;
+                let versions = GoVersions::new(Some(&c.list_path))?;
+                let golang = {
+                    if let Some(vers) = i.version {
+                        let chosen: GoVersion = versions.chosen_version(vers)?;
+                        chosen
+                    } else if i.interactive {
+                        let term = Term::stdout();
+                        let vers = ask_for_version(&term, &versions)?;
+                        let chosen: GoVersion = versions.chosen_version(vers)?;
+                        chosen
+                    } else {
+                        versions.latest()
+                    }
+                };
+                if check_writable(&install_path) {
+                    let res = golang.download(None, workers)?;
+                    if let Downloaded::Mem(v) = res {
+                        let mut dec = ToDecompress::new(Cursor::new(v))?;
+                        dec.extract(&install_path)
+                    } else {
+                        Err(Error::PathBufErr)
+                    }
+                } else {
+                    Err(Error::PathBufErr)
+                }
+            },
         }
     }
 }
