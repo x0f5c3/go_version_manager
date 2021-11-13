@@ -31,10 +31,14 @@ impl<R: Read + Seek + BufRead> ToDecompress<R> {
     }
     #[cfg(target_os = "windows")]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
-        self.decompressor.extract(path).map_err(Error::ZIPErr)
+        self.decompressor
+            .extract(path.parent().ok_or(Error::PathBufErr)?)
+            .map_err(Error::ZIPErr)
     }
     #[cfg(not(target_os = "windows"))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
-        self.decompressor.unpack(path).map_err(Error::IOError)
+        self.decompressor
+            .unpack(path.parent().ok_or(Error::PathBufErr)?)
+            .map_err(Error::IOError)
     }
 }

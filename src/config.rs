@@ -1,10 +1,10 @@
+use crate::consts::VERSION_LIST;
 use crate::goversion::{get_local_version, GoVersion};
 use crate::{Error, GoVersions, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use crate::consts::VERSION_LIST;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub(crate) struct Config {
@@ -29,7 +29,10 @@ impl Config {
         } else {
             None
         };
-        let list_path = config_path.parent().map(|x| x.join("versions.toml")).unwrap_or_else(|| VERSION_LIST.clone());
+        let list_path = config_path
+            .parent()
+            .map(|x| x.join("versions.toml"))
+            .unwrap_or_else(|| VERSION_LIST.clone());
         Ok(Self {
             install_path,
             list_path,
