@@ -6,7 +6,7 @@ use crate::goversion::{GoVersion, GoVersions};
 use crate::Result;
 use crate::{ask_for_version, Downloaded};
 use dialoguer::console::Term;
-use std::io::Cursor;
+use std::io::{Cursor, ErrorKind};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use versions::SemVer;
@@ -33,12 +33,17 @@ impl Command {
     }
 }
 
-fn check_writable(p: &Path) -> bool {
+fn check_writable(p: &Path) -> Result<bool> {
     let res = std::fs::write(p.join("test"), "test");
-    if res.is_ok() {
-        std::fs::remove_file(p.join("test")).is_ok()
+    if let Err(e) = res {
+        if e.kind() == ErrorKind::PermissionDenied {
+            Ok(false)
+        } else {
+            Err(e.into())
+        }
     } else {
-        false
+        std::fs::remove_file(p.join("test"))?;
+        Ok(true)
     }
 }
 /// Initialize the config
@@ -98,7 +103,7 @@ impl Update {
                         latest.download(None, workers)
                     }
                 }
-            } else if check_writable(&install_path) {
+            } else if check_writable(&install_path)? {
                 latest.download(None, workers)
             } else {
                 Err(Error::PathBufErr)
@@ -148,7 +153,7 @@ impl Install {
                 versions.latest()
             }
         };
-        if check_writable(&install_path) {
+        if check_writable(&install_path)? {
             let res = golang.download(None, workers)?;
             if let Downloaded::Mem(v) = res {
                 let mut dec = ToDecompress::new(Cursor::new(v))?;
