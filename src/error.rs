@@ -29,4 +29,6 @@ pub enum Error {
     #[cfg(target_os = "windows")]
     #[error("Zip error: {0}")]
     ZIPErr(#[from] zip::result::ZipError),
+    #[error("ENV error: {0}")]
+    VARErr(#[from] std::env::VarError),
 }

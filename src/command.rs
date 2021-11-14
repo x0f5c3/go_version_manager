@@ -1,11 +1,12 @@
 use crate::config::Config;
-use crate::consts::{CONFIG_PATH, DEFAULT_INSTALL, FILE_EXT};
+use crate::consts::{CONFIG_PATH, DEFAULT_INSTALL, FILE_EXT, PATH_SEPERATOR};
 use crate::decompressor::ToDecompress;
 use crate::error::Error;
 use crate::goversion::{GoVersion, GoVersions};
 use crate::Result;
 use crate::{ask_for_version, Downloaded};
 use dialoguer::console::Term;
+use itertools::Itertools;
 use std::io::{Cursor, ErrorKind};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -60,7 +61,13 @@ impl Init {
         let install_path = self.install_path.unwrap_or_else(|| DEFAULT_INSTALL.clone());
         let config_path = self.config_path.unwrap_or_else(|| CONFIG_PATH.clone());
         let c = Config::new(install_path, config_path)?;
-        c.save()
+        c.save()?;
+        paris::info!("Config path: {}", c.config_path.display());
+        paris::info!("Install path: {}", c.install_path.display());
+        if let Some(v) = c.current {
+            paris::info!("Current version: {}", v.version);
+        }
+        Ok(())
     }
 }
 
@@ -157,7 +164,13 @@ impl Install {
             let res = golang.download(None, workers)?;
             if let Downloaded::Mem(v) = res {
                 let mut dec = ToDecompress::new(Cursor::new(v))?;
-                dec.extract(&c.install_path)
+                dec.extract(&c.install_path)?;
+                let bin_path = &c.install_path.join("bin");
+                let path_check = check_in_path(bin_path)?;
+                if !path_check {
+                    paris::info!("Directory {} not in PATH", bin_path.display());
+                }
+                Ok(())
             } else {
                 Err(Error::PathBufErr)
             }
@@ -235,4 +248,11 @@ impl Completetions {
 
 fn parse_version(src: &str) -> Result<SemVer> {
     SemVer::new(src).ok_or(Error::VersParse)
+}
+
+fn check_in_path(p: &Path) -> Result<bool> {
+    let user_path = std::env::var("PATH")?;
+    Ok(user_path
+        .split(PATH_SEPERATOR)
+        .contains(&p.to_str().ok_or(Error::PathBufErr)?))
 }

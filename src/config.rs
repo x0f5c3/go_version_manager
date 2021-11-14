@@ -10,7 +10,7 @@ use std::path::PathBuf;
 pub(crate) struct Config {
     pub(crate) install_path: PathBuf,
     pub(crate) list_path: PathBuf,
-    config_path: PathBuf,
+    pub(crate) config_path: PathBuf,
     pub(crate) current: Option<GoVersion>,
 }
 

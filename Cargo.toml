@@ -39,6 +39,7 @@ serde = { version = "*", features = ["derive"] }
 flate2 = "1.0.22"
 toml_edit = { version = "*", features = ["easy"] }
 tar = "*"
+itertools = "*"
 
 [dependencies.manic]
 version = "*"

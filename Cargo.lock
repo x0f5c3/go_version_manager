@@ -624,6 +624,7 @@ dependencies = [
  "git2",
  "human-panic",
  "indicatif",
+ "itertools",
  "lazy_static",
  "manic",
  "num_cpus",
