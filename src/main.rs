@@ -20,11 +20,16 @@ use versions::SemVer;
 #[paw::main]
 #[quit::main]
 fn main(opt: Command) -> Result<()> {
+    #[cfg(debug_assertions)]
     let now = std::time::Instant::now();
     setup_panic!();
     init_consts();
     pretty_env_logger::init();
-    opt.run()?;
+    let res = opt.run();
+    if let Err(e) = res {
+        paris::error!("Error: {}", e);
+    }
+    #[cfg(debug_assertions)]
     paris::info!("Execution time: {}s", now.elapsed().as_secs_f64());
     Ok(())
 }

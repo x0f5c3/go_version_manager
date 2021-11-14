@@ -31,4 +31,6 @@ pub enum Error {
     ZIPErr(#[from] zip::result::ZipError),
     #[error("ENV error: {0}")]
     VARErr(#[from] std::env::VarError),
+    #[error("Permission denied, restart the program as root")]
+    NOPerm,
 }

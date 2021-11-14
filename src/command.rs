@@ -110,7 +110,7 @@ impl Update {
                         latest.download(None, workers)
                     }
                 }
-            } else if check_writable(&c.install_path)? {
+            } else if check_writable(c.install_path.parent().ok_or(Error::PathBufErr)?)? {
                 latest.download(None, workers)
             } else {
                 Err(Error::PathBufErr)
@@ -160,7 +160,7 @@ impl Install {
                 versions.latest()
             }
         };
-        if check_writable(&c.install_path)? {
+        if check_writable(c.install_path.parent().ok_or(Error::PathBufErr)?)? {
             let res = golang.download(None, workers)?;
             if let Downloaded::Mem(v) = res {
                 let mut dec = ToDecompress::new(Cursor::new(v))?;
@@ -175,7 +175,7 @@ impl Install {
                 Err(Error::PathBufErr)
             }
         } else {
-            Err(Error::PathBufErr)
+            Err(Error::NOPerm)
         }
     }
 }
