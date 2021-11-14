@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub(crate) struct Config {
-    install_path: PathBuf,
+    pub(crate) install_path: PathBuf,
     pub(crate) list_path: PathBuf,
     config_path: PathBuf,
     pub(crate) current: Option<GoVersion>,

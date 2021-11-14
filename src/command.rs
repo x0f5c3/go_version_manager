@@ -80,7 +80,7 @@ impl Update {
         let workers = self.workers.unwrap_or(num_cpus::get() as u8);
         let config_path = self.config_path.unwrap_or_else(|| CONFIG_PATH.clone());
         let install_path = self.install_path.unwrap_or_else(|| DEFAULT_INSTALL.clone());
-        let c = Config::new(install_path.clone(), config_path)?;
+        let c = Config::new(install_path, config_path)?;
         let latest = GoVersions::download_latest()?;
         let res = {
             if let Some(v) = c.current {
@@ -88,12 +88,12 @@ impl Update {
                     paris::success!("You already have the latest version {}", v.version);
                     quit::with_code(0);
                 } else {
-                    let res = std::fs::metadata(&install_path);
+                    let res = std::fs::metadata(&c.install_path);
                     if let Err(e) = res {
                         if let std::io::ErrorKind::PermissionDenied = e.kind() {
                             paris::error!(
                                 "You don't have privs to install in {}",
-                                install_path.display()
+                                c.install_path.display()
                             );
                             quit::with_code(127);
                         } else {
@@ -103,7 +103,7 @@ impl Update {
                         latest.download(None, workers)
                     }
                 }
-            } else if check_writable(&install_path)? {
+            } else if check_writable(&c.install_path)? {
                 latest.download(None, workers)
             } else {
                 Err(Error::PathBufErr)
@@ -111,7 +111,7 @@ impl Update {
         };
         if let Ok(Downloaded::Mem(m)) = res {
             let mut dec = ToDecompress::new(Cursor::new(m))?;
-            dec.extract(install_path.parent().ok_or(Error::PathBufErr)?)
+            dec.extract(&c.install_path)
         } else {
             Err(Error::NoVersion)
         }
@@ -138,7 +138,7 @@ impl Install {
         let install_path = self.install_path.unwrap_or_else(|| DEFAULT_INSTALL.clone());
         let config_path = self.config_path.unwrap_or_else(|| CONFIG_PATH.clone());
         let workers = self.workers.unwrap_or_else(|| num_cpus::get() as u8);
-        let c = Config::new(install_path.clone(), config_path)?;
+        let c = Config::new(install_path, config_path)?;
         let versions = GoVersions::new(Some(&c.list_path))?;
         let golang = {
             if let Some(vers) = self.version {
@@ -153,11 +153,11 @@ impl Install {
                 versions.latest()
             }
         };
-        if check_writable(&install_path)? {
+        if check_writable(&c.install_path)? {
             let res = golang.download(None, workers)?;
             if let Downloaded::Mem(v) = res {
                 let mut dec = ToDecompress::new(Cursor::new(v))?;
-                dec.extract(&install_path)
+                dec.extract(&c.install_path)
             } else {
                 Err(Error::PathBufErr)
             }
