@@ -1,67 +1,258 @@
-use versions::Versioning;
-use std::path::PathBuf;
-use dialoguer::console::Term;
+use crate::config::Config;
+use crate::consts::{CONFIG_PATH, DEFAULT_INSTALL, FILE_EXT, PATH_SEPERATOR};
+use crate::decompressor::ToDecompress;
 use crate::error::Error;
-use structopt::StructOpt;
-use crate::ask_for_version;
+use crate::goversion::{GoVersion, GoVersions};
 use crate::Result;
-use crate::goversion::{check_git, GoVersion, GoVersions};
+use crate::{ask_for_version, Downloaded};
+use dialoguer::console::Term;
+use itertools::Itertools;
+use std::io::{Cursor, ErrorKind};
+use std::path::{Path, PathBuf};
+use structopt::StructOpt;
+use versions::SemVer;
 
 #[derive(Debug, StructOpt)]
-pub(crate) struct Opt {
-    #[structopt(parse(from_os_str))]
-    pub output: PathBuf,
-    #[structopt(short, long, default_value = "2")]
-    pub workers: u8,
-    #[structopt(short, long, conflicts_with("version"), conflicts_with("interactive"))]
-    pub update: bool,
-    #[structopt(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
-    pub version: Option<Versioning>,
-    #[structopt(short, long)]
-    pub interactive: bool,
-    #[structopt(short, long)]
-    pub git: bool,
+/// I will download Go language install and check its hash to verify I did it correctly{n}Keep calm and carry on
+pub(crate) enum Command {
+    Init(Init),
+    Update(Update),
+    Install(Install),
+    Download(Download),
+    Completetions(Completetions),
 }
 
-impl Opt {
-    pub fn new() -> Self {
-        Self::from_args()
+impl Command {
+    pub fn run(self) -> Result<()> {
+        match self {
+            Self::Download(d) => d.run(),
+            Self::Init(i) => i.run(),
+            Self::Update(u) => u.run(),
+            Self::Completetions(c) => c.run(),
+            Self::Install(i) => i.run(),
+        }
     }
-    pub async fn run(&self) -> Result<GoVersion> {
-        let term = Term::stdout();
-        let git_present = check_git();
-        println!("ARCH: {}", std::env::consts::ARCH);
-        println!("File ext: {}", crate::consts::FILE_EXT);
-        let versions: GoVersions = if git_present {
-            GoVersions::new(self.git).await?
+}
+
+fn check_writable(p: &Path) -> Result<bool> {
+    let res = std::fs::write(p.join("test"), "test");
+    if let Err(e) = res {
+        if e.kind() == ErrorKind::PermissionDenied {
+            Ok(false)
         } else {
-            GoVersions::new(false).await?
+            Err(e.into())
+        }
+    } else {
+        std::fs::remove_file(p.join("test"))?;
+        Ok(true)
+    }
+}
+/// Initialize the config
+#[derive(Debug, Clone, StructOpt)]
+pub(crate) struct Init {
+    #[structopt(short, long, parse(from_os_str))]
+    config_path: Option<PathBuf>,
+    #[structopt(parse(from_os_str))]
+    install_path: Option<PathBuf>,
+}
+
+impl Init {
+    pub(crate) fn run(self) -> Result<()> {
+        let install_path = self.install_path.unwrap_or_else(|| DEFAULT_INSTALL.clone());
+        let config_path = self.config_path.unwrap_or_else(|| CONFIG_PATH.clone());
+        let c = Config::new(install_path, config_path)?;
+        c.save()?;
+        paris::info!("Config path: {}", c.config_path.display());
+        paris::info!("Install path: {}", c.install_path.display());
+        if let Some(v) = c.current {
+            paris::info!("Current version: {}", v.version);
+        }
+        Ok(())
+    }
+}
+
+/// Update the existing instalation
+#[derive(Debug, Clone, StructOpt)]
+pub(crate) struct Update {
+    #[structopt(short, long)]
+    workers: Option<u8>,
+    #[structopt(short, long, parse(from_os_str))]
+    config_path: Option<PathBuf>,
+    #[structopt(short, long, parse(from_os_str))]
+    install_path: Option<PathBuf>,
+}
+
+impl Update {
+    pub(crate) fn run(self) -> Result<()> {
+        let workers = self.workers.unwrap_or(num_cpus::get() as u8);
+        let config_path = self.config_path.unwrap_or_else(|| CONFIG_PATH.clone());
+        let install_path = self.install_path.unwrap_or_else(|| DEFAULT_INSTALL.clone());
+        let c = Config::new(install_path, config_path)?;
+        let latest = GoVersions::download_latest()?;
+        let res = {
+            if let Some(v) = c.current {
+                if v.version == latest.version {
+                    paris::success!("You already have the latest version {}", v.version);
+                    quit::with_code(0);
+                } else {
+                    let res = std::fs::metadata(&c.install_path);
+                    if let Err(e) = res {
+                        if let std::io::ErrorKind::PermissionDenied = e.kind() {
+                            paris::error!(
+                                "You don't have privs to install in {}",
+                                c.install_path.display()
+                            );
+                            quit::with_code(127);
+                        } else {
+                            Err(e.into())
+                        }
+                    } else {
+                        latest.download(None, workers)
+                    }
+                }
+            } else if check_writable(c.install_path.parent().ok_or(Error::PathBufErr)?)? {
+                latest.download(None, workers)
+            } else {
+                Err(Error::PathBufErr)
+            }
         };
+        if let Ok(Downloaded::Mem(m)) = res {
+            let mut dec = ToDecompress::new(Cursor::new(m))?;
+            dec.extract(&c.install_path)
+        } else {
+            Err(Error::NoVersion)
+        }
+    }
+}
+
+/// Install the chosen or latest golang version
+#[derive(Debug, Clone, StructOpt)]
+pub(crate) struct Install {
+    #[structopt(short, long, parse(from_os_str))]
+    config_path: Option<PathBuf>,
+    #[structopt(parse(from_os_str), conflicts_with("config_path"))]
+    install_path: Option<PathBuf>,
+    #[structopt(short, long)]
+    workers: Option<u8>,
+    #[structopt(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
+    version: Option<SemVer>,
+    #[structopt(short, long)]
+    interactive: bool,
+}
+
+impl Install {
+    pub(crate) fn run(self) -> Result<()> {
+        let install_path = self.install_path.unwrap_or_else(|| DEFAULT_INSTALL.clone());
+        let config_path = self.config_path.unwrap_or_else(|| CONFIG_PATH.clone());
+        let workers = self.workers.unwrap_or_else(|| num_cpus::get() as u8);
+        let c = Config::new(install_path, config_path)?;
+        let versions = GoVersions::new(Some(&c.list_path))?;
         let golang = {
-            if let Some(vers) = &self.version {
-                let chosen: GoVersion = versions.chosen_version(vers.clone())?;
-                chosen
-            } else if self.interactive && git_present {
-                let vers = ask_for_version(&term, &versions).await?;
+            if let Some(vers) = self.version {
                 let chosen: GoVersion = versions.chosen_version(vers)?;
                 chosen
-            } else if self.update {
-                let if_latest = versions.check_local_latest().await?;
-                if ! if_latest {
-                    versions.latest()
-                } else {
-                    leg::success("You have the latest version installed", None, None).await;
-                    quit::with_code(0);
-                }
-            }
-            else {
+            } else if self.interactive {
+                let term = Term::stdout();
+                let vers = ask_for_version(&term, &versions)?;
+                let chosen: GoVersion = versions.chosen_version(vers)?;
+                chosen
+            } else {
                 versions.latest()
             }
         };
-    Ok(golang)
+        if check_writable(c.install_path.parent().ok_or(Error::PathBufErr)?)? {
+            let res = golang.download(None, workers)?;
+            if let Downloaded::Mem(v) = res {
+                let mut dec = ToDecompress::new(Cursor::new(v))?;
+                dec.extract(&c.install_path)?;
+                let bin_path = &c.install_path.join("bin");
+                let path_check = check_in_path(bin_path)?;
+                if !path_check {
+                    paris::info!("Directory {} not in PATH", bin_path.display());
+                }
+                Ok(())
+            } else {
+                Err(Error::PathBufErr)
+            }
+        } else {
+            Err(Error::NOPerm)
+        }
+    }
+}
+/// Download golang version to file
+#[derive(Debug, Clone, StructOpt)]
+pub(crate) struct Download {
+    #[structopt(parse(from_os_str))]
+    output: PathBuf,
+    #[structopt(short, long)]
+    workers: Option<u8>,
+    #[structopt(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
+    version: Option<SemVer>,
+    #[structopt(short, long)]
+    interactive: bool,
+}
+
+impl Download {
+    pub(crate) fn run(self) -> Result<()> {
+        let workers = self.workers.unwrap_or(num_cpus::get() as u8);
+        let term = Term::stdout();
+        let versions = GoVersions::new(None)?;
+        let golang = {
+            if let Some(vers) = self.version {
+                let chosen: GoVersion = versions.chosen_version(vers)?;
+                chosen
+            } else if self.interactive {
+                let vers = ask_for_version(&term, &versions)?;
+                let chosen: GoVersion = versions.chosen_version(vers)?;
+                chosen
+            } else {
+                versions.latest()
+            }
+        };
+        paris::info!(
+            "<b><bright blue>Filename: go{}.{}</></b>",
+            golang.version,
+            FILE_EXT.as_str()
+        );
+        paris::info!(
+            "<b><blue>Downloading golang version {}</></b>",
+            &golang.version
+        );
+        let file_path = golang.download(Some(self.output), workers)?;
+        if let Downloaded::File(path) = file_path {
+            let path_str = path.to_str().ok_or(Error::PathBufErr)?;
+            paris::success!(
+                "<b><bright green>Golang has been downloaded to {}</></b>",
+                path_str
+            );
+        }
+        Ok(())
     }
 }
 
-fn parse_version(src: &str) -> Result<Versioning> {
-    Versioning::new(src).ok_or(Error::VersParse)
+/// Generate completions
+#[derive(Debug, Clone, StructOpt)]
+pub(crate) struct Completetions {
+    shell: structopt::clap::Shell,
+    #[structopt(parse(from_os_str))]
+    out_dir: PathBuf,
+}
+
+impl Completetions {
+    pub(crate) fn run(self) -> Result<()> {
+        let mut app: structopt::clap::App = Self::clap();
+        app.gen_completions("go_version_manager", self.shell, self.out_dir);
+        Ok(())
+    }
+}
+
+fn parse_version(src: &str) -> Result<SemVer> {
+    SemVer::new(src).ok_or(Error::VersParse)
+}
+
+fn check_in_path(p: &Path) -> Result<bool> {
+    let user_path = std::env::var("PATH")?;
+    Ok(user_path
+        .split(PATH_SEPERATOR)
+        .contains(&p.to_str().ok_or(Error::PathBufErr)?))
 }

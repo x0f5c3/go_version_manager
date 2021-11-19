@@ -6,3 +6,5 @@ Cargo.lock
 **/*.rs.bk
 
 .idea/
+*.zip
+*.tar.gz

@@ -1,5 +1,8 @@
 # Changelog
 
+# v0.8.0 (2021-11-14)
+- [Added] persistence and config files
+
 # v0.7.5 (2020-12-30):
 - [Added] option to use github api or git
 
