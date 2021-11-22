@@ -42,7 +42,7 @@ impl Downloaded {
 impl GoVersions {
     fn from_file(path: &Path) -> Result<Self> {
         let read = std::fs::read_to_string(path)?;
-        toml_edit::de::from_str(&read).map_err(Error::TOMLDeErr)
+        serde_json::from_str(&read).map_err(Error::JSONErr)
     }
     fn save(&self, list_path: Option<&Path>) -> Result<()> {
         let path = if let Some(p) = list_path {
@@ -55,7 +55,7 @@ impl GoVersions {
             .create(true)
             .write(true)
             .open(path)?;
-        let to_write = toml_edit::ser::to_string_pretty(&self)?;
+        let to_write = serde_json::to_string_pretty(&self)?;
         file.write_all(to_write.as_bytes())?;
         file.sync_all()?;
         Ok(())
@@ -136,12 +136,6 @@ impl GoVersions {
     }
     /// Parses the versions into Versioning structs
     pub fn download_versions() -> Result<Vec<GoVersion>> {
-        // let page = CLIENT
-        //     .get(DL_URL)
-        //     .send()
-        //     .map_err(manic::ManicError::from)?
-        //     .text()
-        //     .map_err(manic::ManicError::from)?;
         Ok(GIT_VERSIONS
             .par_iter()
             .filter_map(|x| {

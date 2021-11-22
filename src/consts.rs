@@ -1,3 +1,4 @@
+use crate::utils::get_local_path;
 use crate::GoVersions;
 use std::path::PathBuf;
 use versions::SemVer;
@@ -44,8 +45,8 @@ lazy_static! {
     };
     pub static ref CLIENT: manic::Client = manic::Client::new();
     pub static ref DL_PAGE: String = CLIENT.get(DL_URL).send().unwrap().text().unwrap();
-    pub static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.toml");
-    pub static ref VERSION_LIST: PathBuf = CONFIG_DIR.join("versions.toml");
+    pub static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.json");
+    pub static ref VERSION_LIST: PathBuf = CONFIG_DIR.join("versions.json");
     pub static ref DEFAULT_INSTALL: PathBuf = {
         if cfg!(windows) {
             PathBuf::from("C:\\Go")
@@ -53,6 +54,7 @@ lazy_static! {
             PathBuf::from("/usr/local/go")
         }
     };
+    pub static ref CURRENT_INSTALL: Option<PathBuf> = get_local_path();
     pub static ref GIT_VERSIONS: Vec<SemVer> = {
         let output = GoVersions::raw_git_versions().unwrap();
         GoVersions::parse_versions(output).unwrap()

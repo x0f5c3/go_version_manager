@@ -26,7 +26,6 @@ paw = "*"
 console = "0.14.0"
 git2 = { version = "*", features = ["vendored-libgit2", "vendored-openssl"] }
 num_cpus = "1.13.0"
-#reqwest = { version = "0.11.3", features = ["rustls", "blocking"] }
 thiserror = "1.0.22"
 dialoguer = "0.8.0"
 quit = "1.1.2"
@@ -36,25 +35,20 @@ paris = { version = "*", features = ["macros"] }
 rayon = "*"
 lazy_static = "*"
 serde = { version = "*", features = ["derive"] }
-flate2 = "1.0.22"
-toml_edit = { version = "*", features = ["easy"] }
-tar = "*"
 itertools = "*"
 
 [dependencies.manic]
 version = "*"
 default-features = false
 features = ["progress", "json", "threaded"]
-#[dependencies.reqwest]
-#version = "*"
-#default-features = false
-#features = ["rustls-tls", "blocking"]
 
 [target.'cfg(windows)'.dependencies]
 zip = "*"
 zip-extensions = "*"
 
 [target.'cfg(not(windows))'.dependencies]
+flate2 = "1.0.22"
+tar = "*"
 
 [badges]
 github = { repository = "x0f5c3/go_version_manager" }
