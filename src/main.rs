@@ -4,14 +4,16 @@
 #[macro_use]
 extern crate lazy_static;
 
-use crate::command::Command;
+use human_panic::setup_panic;
+
+use error::Error;
+pub(crate) use utils::{ask_for_version, init_consts};
+
+use crate::commands::Command;
 use crate::consts::FILE_EXT;
 use crate::error::Result;
 use crate::goversion::Downloaded;
 use crate::goversion::GoVersions;
-use error::Error;
-use human_panic::setup_panic;
-pub(crate) use utils::{ask_for_version, init_consts};
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
@@ -31,7 +33,8 @@ fn main(opt: Command) -> Result<()> {
     paris::info!("Execution time: {}s", now.elapsed().as_secs_f64());
     Ok(())
 }
-mod command;
+
+mod commands;
 mod config;
 mod consts;
 mod decompressor;
