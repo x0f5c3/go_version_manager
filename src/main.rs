@@ -1,4 +1,3 @@
-#![allow(dead_code, clippy::enum_variant_names)]
 //! `go_version_manager` is a small program intended to download the latest or chosen golang version
 //! from the official site also checking the checksum for the file
 #[macro_use]

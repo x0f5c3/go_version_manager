@@ -5,7 +5,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("IOError")]
-    IOError(#[from] std::io::Error),
+    IOErr(#[from] std::io::Error),
     #[error("Manic error: {0}")]
     ManicErr(#[from] manic::ManicError),
     #[error("Failed to convert Pathbuf to str")]

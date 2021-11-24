@@ -1,5 +1,6 @@
 use crate::consts::VERSION_LIST;
-use crate::goversion::{get_local_version, GoVersion};
+use crate::goversion::GoVersion;
+use crate::utils::get_local_version;
 use crate::{Error, GoVersions, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;

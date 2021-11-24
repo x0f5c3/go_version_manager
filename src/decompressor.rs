@@ -39,6 +39,6 @@ impl<R: Read + Seek + BufRead> ToDecompress<R> {
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor
             .unpack(path.parent().ok_or(Error::PathBufErr)?)
-            .map_err(Error::IOError)
+            .map_err(Error::IOErr)
     }
 }
