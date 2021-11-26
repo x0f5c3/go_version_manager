@@ -45,10 +45,12 @@ features = ["progress", "json", "threaded"]
 [target.'cfg(windows)'.dependencies]
 zip = "*"
 zip-extensions = "*"
+self_update = { version = "0.27.0", default-features = false, features = ["rustls", "archive-zip", "compression-zip-deflate"] }
 
 [target.'cfg(not(windows))'.dependencies]
 flate2 = "1.0.22"
 tar = "*"
+self_update = { version = "0.27.0", default-features = false, features = ["rustls", "archive-tar", "compression-flate2"] }
 
 [badges]
 github = { repository = "x0f5c3/go_version_manager" }

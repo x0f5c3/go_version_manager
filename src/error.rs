@@ -27,4 +27,6 @@ pub enum Error {
     VARErr(#[from] std::env::VarError),
     #[error("Permission denied, restart the program as root")]
     NOPerm,
+    #[error("Update failed {0}")]
+    UpdateErr(#[from] self_update::errors::Error),
 }
