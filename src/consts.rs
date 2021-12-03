@@ -55,7 +55,7 @@ lazy_static! {
             PathBuf::from("/usr/local/go")
         }
     };
-    pub static ref CURRENT_INSTALL: Option<PathBuf> = get_local_path();
+    pub static ref CURRENT_INSTALL: Option<PathBuf> = get_local_path().unwrap_or(None);
     pub static ref ENVS_DIR: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
     pub static ref GIT_VERSIONS: Vec<SemVer> = {
         let output = GoVersions::raw_git_versions().unwrap();

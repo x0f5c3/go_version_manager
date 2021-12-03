@@ -32,14 +32,14 @@ impl Downloaded {
                 r.extract(path)?;
                 let par = path.parent().ok_or(Error::PathBufErr)?;
                 std::fs::rename(par.join("go"), par.join(&format!("go{}", vers.version)))
-                    .map_err(Error::IOError)
+                    .map_err(Error::IOErr)
             }
             Self::File { dir, vers } => {
                 let mut r = ToDecompress::new(BufReader::new(std::fs::File::open(dir)?))?;
                 r.extract(path)?;
                 let par = path.parent().ok_or(Error::PathBufErr)?;
                 std::fs::rename(par.join("go"), par.join(&format!("go{}", vers.version)))
-                    .map_err(Error::IOError)
+                    .map_err(Error::IOErr)
             }
         }
     }

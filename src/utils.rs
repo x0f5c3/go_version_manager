@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use crate::consts::{CONFIG_DIR, CONFIG_PATH, CURRENT_INSTALL, DEFAULT_INSTALL, VERSION_LIST};
 use crate::Error;
 use crate::Result;
@@ -6,11 +5,13 @@ use crate::{GoVersions, FILE_EXT};
 use console::Term;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use std::path::{Path, PathBuf};
-use versions::SemVer;
 use self_update::backends::github::Update;
 use self_update::cargo_crate_version;
 use self_update::update::ReleaseUpdate;
+use std::fmt;
+use std::fmt::Formatter;
+use std::path::{Path, PathBuf};
+use versions::SemVer;
 
 pub(crate) fn get_local_path() -> Result<Option<PathBuf>> {
     let cmd = if cfg!(windows) {
@@ -28,7 +29,7 @@ pub(crate) fn get_local_path() -> Result<Option<PathBuf>> {
                 .next()
                 .map(|x| x.to_path_buf())
         })
-        .or_else(|x|  {
+        .or_else(|x| {
             if x.kind() == std::io::ErrorKind::NotFound {
                 return Ok(None);
             }
@@ -83,9 +84,18 @@ pub(crate) fn get_local_version(path: &Path) -> Result<Option<SemVer>> {
     })
 }
 
-enum ShouldUpdate {
+pub(crate) enum ShouldUpdate {
     Yes(Box<dyn ReleaseUpdate>),
     No,
+}
+
+impl fmt::Display for ShouldUpdate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Yes(u) => write!(f, "Update available: {:?}", u.get_latest_release()),
+            Self::No => write!(f, "You have the latest version"),
+        }
+    }
 }
 
 impl ShouldUpdate {
@@ -106,7 +116,7 @@ pub(crate) fn check_self_update() -> Result<ShouldUpdate> {
         .build()?;
     let rel = up.get_latest_release()?;
     if self_update::version::bump_is_greater(&up.current_version(), &rel.version)? {
-        Ok(ShouldUpdate::new(Some(up.into())))
+        Ok(ShouldUpdate::new(Some(up)))
     } else {
         Ok(ShouldUpdate::No)
     }

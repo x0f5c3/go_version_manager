@@ -1,10 +1,11 @@
+#![allow(dead_code)]
 //! `go_version_manager` is a small program intended to download the latest or chosen golang version
 //! from the official site also checking the checksum for the file
 #[macro_use]
 extern crate lazy_static;
 
-use std::path::PathBuf;
 use human_panic::setup_panic;
+use std::path::PathBuf;
 
 use error::Error;
 pub(crate) use utils::{ask_for_version, init_consts};
@@ -26,12 +27,12 @@ fn main(opt: Command) -> Result<()> {
     setup_panic!();
     init_consts();
     pretty_env_logger::init();
-    // let res = opt.run();
-    // if let Err(e) = res {
-    //     paris::error!("Error: {}", e);
-    // }
     let up = check_self_update()?;
-    println!("{:?}", up);
+    println!("{}", up);
+    let res = opt.run();
+    if let Err(e) = res {
+        paris::error!("Error: {}", e);
+    }
     #[cfg(debug_assertions)]
     paris::info!("Execution time: {}s", now.elapsed().as_secs_f64());
     Ok(())
