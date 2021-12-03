@@ -1,18 +1,16 @@
-use std::io::Cursor;
 use std::path::PathBuf;
 
 use dialoguer::console::Term;
 use structopt::StructOpt;
 use versions::SemVer;
 
+use crate::ask_for_version;
 use crate::commands::utils::{check_in_path, check_writable, parse_version};
 use crate::config::Config;
 use crate::consts::{CONFIG_PATH, DEFAULT_INSTALL};
-use crate::decompressor::ToDecompress;
 use crate::error::Error;
 use crate::goversion::{GoVersion, GoVersions};
 use crate::Result;
-use crate::{ask_for_version, Downloaded};
 
 /// Install the chosen or latest golang version
 #[derive(Debug, Clone, StructOpt)]
@@ -51,20 +49,15 @@ impl Install {
         };
         if check_writable(c.install_path.parent().ok_or(Error::PathBufErr)?)? {
             let res = golang.download(None, workers)?;
-            if let Downloaded::Mem(v) = res {
-                let mut dec = ToDecompress::new(Cursor::new(v))?;
-                dec.extract(&c.install_path)?;
-                let bin_path = &c.install_path.join("bin");
-                let path_check = check_in_path(bin_path)?;
-                if !path_check {
-                    paris::info!("Directory {} not in PATH", bin_path.display());
-                }
-                Ok(())
-            } else {
-                Err(Error::PathBufErr)
+            res.unpack(&c.install_path)?;
+            let bin_path = &c.install_path.join("bin");
+            let path_check = check_in_path(bin_path)?;
+            if !path_check {
+                paris::info!("Directory {} not in PATH", bin_path.display());
             }
+            Ok(())
         } else {
-            Err(Error::NOPerm)
+            Err(Error::PathBufErr)
         }
     }
 }

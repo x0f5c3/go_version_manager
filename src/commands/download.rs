@@ -52,8 +52,8 @@ impl Download {
             &golang.version
         );
         let file_path = golang.download(Some(self.output), workers)?;
-        if let Downloaded::File(path) = file_path {
-            let path_str = path.to_str().ok_or(Error::PathBufErr)?;
+        if let Downloaded::File { dir, vers: _ } = file_path {
+            let path_str = dir.to_str().ok_or(Error::PathBufErr)?;
             paris::success!(
                 "<b><bright green>Golang has been downloaded to {}</></b>",
                 path_str

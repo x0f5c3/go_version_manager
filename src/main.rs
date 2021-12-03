@@ -40,4 +40,5 @@ mod consts;
 mod decompressor;
 mod error;
 mod goversion;
+mod installed;
 mod utils;

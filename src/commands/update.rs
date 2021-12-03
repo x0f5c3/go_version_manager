@@ -1,4 +1,3 @@
-use std::io::Cursor;
 use std::path::PathBuf;
 
 use structopt::StructOpt;
@@ -6,10 +5,8 @@ use structopt::StructOpt;
 use crate::commands::utils::check_writable;
 use crate::config::Config;
 use crate::consts::{CONFIG_PATH, DEFAULT_INSTALL};
-use crate::decompressor::ToDecompress;
 use crate::error::Error;
 use crate::goversion::GoVersions;
-use crate::Downloaded;
 use crate::Result;
 
 /// Update the existing instalation
@@ -57,11 +54,6 @@ impl Update {
                 Err(Error::PathBufErr)
             }
         };
-        if let Ok(Downloaded::Mem(m)) = res {
-            let mut dec = ToDecompress::new(Cursor::new(m))?;
-            dec.extract(&c.install_path)
-        } else {
-            Err(Error::NoVersion)
-        }
+        res?.unpack(&c.install_path)
     }
 }

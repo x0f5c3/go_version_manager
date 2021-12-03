@@ -1,5 +1,6 @@
 use crate::utils::get_local_path;
 use crate::GoVersions;
+use directories::ProjectDirs;
 use std::path::PathBuf;
 use versions::SemVer;
 
@@ -35,9 +36,9 @@ lazy_static! {
         };
         format!("{}-{}.{}", os, arch, ext)
     };
+    pub static ref PROJECT_DIRS: ProjectDirs = ProjectDirs::from("rs", "", "Go Manager").unwrap();
     pub static ref CONFIG_DIR: PathBuf = {
-        let dirs = directories::ProjectDirs::from("rs", "", "Go Manager").unwrap();
-        let res = dirs.config_dir().to_path_buf();
+        let res = PROJECT_DIRS.config_dir().to_path_buf();
         if !res.exists() {
             std::fs::create_dir_all(&res).unwrap();
         }
@@ -55,6 +56,7 @@ lazy_static! {
         }
     };
     pub static ref CURRENT_INSTALL: Option<PathBuf> = get_local_path();
+    pub static ref ENVS_DIR: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
     pub static ref GIT_VERSIONS: Vec<SemVer> = {
         let output = GoVersions::raw_git_versions().unwrap();
         GoVersions::parse_versions(output).unwrap()

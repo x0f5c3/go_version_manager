@@ -20,20 +20,26 @@ pub struct GoVersions {
 }
 
 pub enum Downloaded {
-    File(PathBuf),
-    Mem(Vec<u8>),
+    File { dir: PathBuf, vers: GoVersion },
+    Mem { buf: Vec<u8>, vers: GoVersion },
 }
 
 impl Downloaded {
-    fn unpack(&self, path: &Path) -> Result<()> {
+    pub(crate) fn unpack(&self, path: &Path) -> Result<()> {
         match self {
-            Self::Mem(v) => {
-                let mut r = ToDecompress::new(Cursor::new(v))?;
-                r.extract(path)
+            Self::Mem { buf, vers } => {
+                let mut r = ToDecompress::new(Cursor::new(buf))?;
+                r.extract(path)?;
+                let par = path.parent().ok_or(Error::PathBufErr)?;
+                std::fs::rename(par.join("go"), par.join(&format!("go{}", vers.version)))
+                    .map_err(Error::IOError)
             }
-            Self::File(p) => {
-                let mut r = ToDecompress::new(BufReader::new(std::fs::File::open(p)?))?;
-                r.extract(path)
+            Self::File { dir, vers } => {
+                let mut r = ToDecompress::new(BufReader::new(std::fs::File::open(dir)?))?;
+                r.extract(path)?;
+                let par = path.parent().ok_or(Error::PathBufErr)?;
+                std::fs::rename(par.join("go"), par.join(&format!("go{}", vers.version)))
+                    .map_err(Error::IOError)
             }
         }
     }
@@ -236,10 +242,16 @@ impl GoVersion {
             let path_str = path.to_str().ok_or(Error::PathBufErr)?;
             let filename = client.filename().to_string();
             client.download_and_save(path_str)?;
-            Ok(Downloaded::File(path.join(filename)))
+            Ok(Downloaded::File {
+                dir: path.join(filename),
+                vers: self.clone(),
+            })
         } else {
             let res = client.download()?;
-            Ok(Downloaded::Mem(res.to_vec()))
+            Ok(Downloaded::Mem {
+                buf: res.to_vec(),
+                vers: self.clone(),
+            })
         }
     }
 }

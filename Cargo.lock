@@ -623,6 +623,7 @@ dependencies = [
  "pretty_env_logger",
  "quit",
  "rayon",
+ "regex",
  "serde",
  "serde_json",
  "soup",

@@ -1,3 +1,4 @@
+use std::env::VarError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -24,7 +25,9 @@ pub enum Error {
     #[error("Zip error: {0}")]
     ZIPErr(#[from] zip::result::ZipError),
     #[error("ENV error: {0}")]
-    VARErr(#[from] std::env::VarError),
+    VARErr(#[from] VarError),
     #[error("Permission denied, restart the program as root")]
     NOPerm,
+    #[error("Regex error: {0}")]
+    RegexErr(#[from] regex::Error),
 }

@@ -36,6 +36,7 @@ rayon = "*"
 lazy_static = "*"
 serde = { version = "*", features = ["derive"] }
 itertools = "*"
+regex = "*"
 
 [dependencies.manic]
 version = "*"
