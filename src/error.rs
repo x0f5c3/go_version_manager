@@ -6,7 +6,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("IOError")]
-    IOError(#[from] std::io::Error),
+    IOErr(#[from] std::io::Error),
     #[error("Manic error: {0}")]
     ManicErr(#[from] manic::ManicError),
     #[error("Failed to convert Pathbuf to str")]
@@ -28,6 +28,8 @@ pub enum Error {
     VARErr(#[from] VarError),
     #[error("Permission denied, restart the program as root")]
     NOPerm,
+    #[error("Update failed {0}")]
+    UpdateErr(#[from] self_update::errors::Error),
     #[error("Regex error: {0}")]
     RegexErr(#[from] regex::Error),
 }

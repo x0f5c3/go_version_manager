@@ -51,13 +51,12 @@ impl Install {
             let res = golang.download(None, workers)?;
             res.unpack(&c.install_path)?;
             let bin_path = &c.install_path.join("bin");
-            let path_check = check_in_path(bin_path)?;
-            if !path_check {
+            if !check_in_path(bin_path)? {
                 paris::info!("Directory {} not in PATH", bin_path.display());
             }
             Ok(())
         } else {
-            Err(Error::PathBufErr)
+            Err(Error::NOPerm)
         }
     }
 }

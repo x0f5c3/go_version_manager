@@ -1,8 +1,8 @@
-use crate::consts::{DEFAULT_INSTALL, DL_PAGE, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
+use crate::consts::{DL_PAGE, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
 use crate::decompressor::ToDecompress;
 use crate::error::Error;
 use crate::error::Result;
-use duct::cmd;
+use crate::utils::get_local_version;
 use git2::{Direction, Remote};
 use manic::Downloader;
 use rayon::prelude::*;
@@ -93,23 +93,7 @@ impl GoVersions {
     pub fn latest(&self) -> GoVersion {
         self.latest.clone()
     }
-    pub fn check_local_latest(&self, path: Option<PathBuf>) -> Result<bool> {
-        let local_vers = if let Some(p) = path {
-            get_local_version(&p)?
-        } else {
-            get_local_version(&DEFAULT_INSTALL)?
-        };
-        if local_vers.is_none() {
-            return Ok(false);
-        }
-        let somed = local_vers.unwrap();
-        let latest = self.latest().version;
-        if somed == latest {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
+
     /// Gets golang versions from git tags
     pub fn raw_git_versions() -> Result<Vec<String>> {
         let mut remote = Remote::create_detached("https://github.com/golang/go")?;
@@ -254,34 +238,15 @@ impl GoVersion {
             })
         }
     }
-}
-
-pub fn check_git() -> bool {
-    match cmd!("git", "version").stdout_null().run() {
-        Ok(_) => true,
-        Err(e) => !matches!(e.kind(), std::io::ErrorKind::NotFound),
-    }
-}
-
-pub fn get_local_version(path: &Path) -> Result<Option<SemVer>> {
-    let output = cmd!(
-        path.join("bin/go").to_str().ok_or(Error::PathBufErr)?,
-        "version"
-    )
-    .read();
-    if let Err(e) = output {
-        return if e.kind() == std::io::ErrorKind::NotFound {
-            Ok(None)
+    pub(crate) fn check_newer(&self, path: &Path) -> Result<bool> {
+        if let Some(s) = get_local_version(path)? {
+            if s < self.version {
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         } else {
-            Err(e.into())
-        };
-    } else if let Ok(vers) = output {
-        let version = vers.split(' ').nth(2);
-        if version.is_none() {
-            return Ok(None);
+            Ok(true)
         }
-        let somed = version.unwrap().replace("go", "");
-        return Ok(SemVer::new(somed.as_ref()));
     }
-    Ok(None)
 }
