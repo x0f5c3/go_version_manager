@@ -1,5 +1,8 @@
 # Changelog
 
+# v0.8.2
+- [Added] self updating
+
 # v0.8.0 (2021-11-14)
 - [Added] persistence and config files
 

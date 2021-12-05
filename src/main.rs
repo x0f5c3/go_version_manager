@@ -4,6 +4,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+use console::Term;
 use human_panic::setup_panic;
 use std::path::PathBuf;
 
@@ -15,7 +16,7 @@ use crate::consts::FILE_EXT;
 use crate::error::Result;
 use crate::goversion::Downloaded;
 use crate::goversion::GoVersions;
-use crate::utils::check_self_update;
+use crate::utils::check_and_ask;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
@@ -27,8 +28,7 @@ fn main(opt: Command) -> Result<()> {
     setup_panic!();
     init_consts();
     pretty_env_logger::init();
-    let up = check_self_update()?;
-    println!("{}", up);
+    check_and_ask(&Term::stdout())?;
     let res = opt.run();
     if let Err(e) = res {
         paris::error!("Error: {}", e);

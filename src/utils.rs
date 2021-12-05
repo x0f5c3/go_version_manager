@@ -108,10 +108,40 @@ impl ShouldUpdate {
     }
 }
 
+pub(crate) fn check_and_ask(term: &Term) -> Result<()> {
+    let should = check_self_update()?;
+    if let ShouldUpdate::Yes(up) = should {
+        let answer = dialoguer::Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt(format!("There's an update available\nYour version: {}\nLatest version: {}\nDo you want to update? [Y/n]", up.current_version(), up.get_latest_release()?.version))
+            .default(true).interact_on_opt(term)?.ok_or(Error::NoVersion)?;
+        if answer {
+            let upres = up.update()?;
+            if upres.updated() {
+                paris::success!(
+                    "<b><green>Successfully updated to version {}</></b>",
+                    upres.version()
+                );
+                return Ok(());
+            } else {
+                paris::error!(
+                    "<b><red>Failed to update, current version {}</></b>",
+                    upres.version()
+                )
+            }
+            return Ok(());
+        } else {
+            paris::info!("Ok, I will remind you next time")
+        }
+        return Ok(());
+    }
+    Ok(())
+}
+
 pub(crate) fn check_self_update() -> Result<ShouldUpdate> {
     let up = Update::configure()
         .repo_owner("x0f5c3")
         .repo_name("go_version_manager")
+        .bin_name("go_version_manager")
         .current_version(cargo_crate_version!())
         .build()?;
     let rel = up.get_latest_release()?;
