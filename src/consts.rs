@@ -4,7 +4,7 @@ use directories::ProjectDirs;
 use std::path::PathBuf;
 use versions::SemVer;
 
-pub const DL_URL: &str = "https://golang.org/dl";
+pub const DL_URL: &str = "https://go.dev/dl";
 
 #[cfg(target_os = "windows")]
 pub const PATH_SEPERATOR: &str = ";";
