@@ -72,6 +72,33 @@ jobs:
           asset_path: target/aarch64-unknown-linux-gnu/release/go_version_manager
           asset_name: go_version_manager-linux-arm64
           asset_content_type: application/octet-stream
+  build_arm64_darwin:
+    needs: [ create_release ]
+    name: Publish binaries for apple silicon
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-apple-darwin
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target aarch64-apple-darwin
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: target/aarch64-apple-darwin/release/go_version_manager
+          asset_name: go_version_manager-darwin-arm64
+          asset_content_type: application/octet-stream
   build_x64_win:
     needs: [create_release]
     name: Publish binaries for windows x64
