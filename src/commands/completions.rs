@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use structopt::StructOpt;
 
-use crate::Result;
+use anyhow::Result;
 
 /// Generate completions
 #[derive(Debug, Clone, StructOpt)]

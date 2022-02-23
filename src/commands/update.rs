@@ -7,7 +7,8 @@ use crate::config::Config;
 use crate::consts::{CONFIG_PATH, CURRENT_INSTALL, DEFAULT_INSTALL};
 use crate::error::Error;
 use crate::goversion::GoVersions;
-use crate::Result;
+// use crate::Result;
+use anyhow::{Context, Result};
 
 /// Update the existing instalation
 #[derive(Debug, Clone, StructOpt)]
@@ -28,10 +29,22 @@ impl Update {
             .install_path
             .or_else(|| CURRENT_INSTALL.clone())
             .unwrap_or_else(|| DEFAULT_INSTALL.clone());
+        let check = check_writable(
+            install_path
+                .parent()
+                .context("Failed to get the parent directory")?,
+        )?;
         let c = Config::new(install_path.clone(), config_path)?;
         let latest = GoVersions::download_latest()?;
         let res = latest.check_newer(&c.install_path).and_then(|x| {
             if x {
+                if !check {
+                    paris::error!(
+                        "Cannot update go, you don't have write access to {}",
+                        install_path.display()
+                    );
+                    quit::with_code(1);
+                }
                 latest.download(None, workers)
             } else {
                 paris::success!("You already have the latest version");
@@ -39,9 +52,9 @@ impl Update {
             }
         });
         if check_writable(c.install_path.parent().ok_or(Error::PathBufErr)?)? {
-            res?.unpack(&install_path)
+            res?.unpack(&install_path, false)
         } else {
-            Err(Error::NOPerm)
+            Err(Error::NOPerm.into())
         }
     }
 }

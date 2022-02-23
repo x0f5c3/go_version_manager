@@ -1,8 +1,10 @@
 use crate::consts::{DL_PAGE, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
 use crate::decompressor::ToDecompress;
 use crate::error::Error;
-use crate::error::Result;
+// use crate::error::Result;
 use crate::utils::get_local_version;
+use anyhow::Context;
+use anyhow::Result;
 use git2::{Direction, Remote};
 use manic::Downloader;
 use rayon::prelude::*;
@@ -25,22 +27,26 @@ pub enum Downloaded {
 }
 
 impl Downloaded {
-    pub(crate) fn unpack(&self, path: &Path) -> Result<()> {
-        match self {
+    pub(crate) fn unpack(&self, path: &Path, rename: bool) -> Result<()> {
+        let par = path.parent().ok_or(Error::PathBufErr)?;
+        let vers = match self {
             Self::Mem { buf, vers } => {
                 let mut r = ToDecompress::new(Cursor::new(buf))?;
                 r.extract(path)?;
-                let par = path.parent().ok_or(Error::PathBufErr)?;
-                std::fs::rename(par.join("go"), par.join(&format!("go{}", vers.version)))
-                    .map_err(Error::IOErr)
+                vers
             }
             Self::File { dir, vers } => {
                 let mut r = ToDecompress::new(BufReader::new(std::fs::File::open(dir)?))?;
                 r.extract(path)?;
-                let par = path.parent().ok_or(Error::PathBufErr)?;
-                std::fs::rename(par.join("go"), par.join(&format!("go{}", vers.version)))
-                    .map_err(Error::IOErr)
+                vers
             }
+        };
+        if rename {
+            std::fs::rename(par.join("go"), par.join(&format!("go{}", vers.version)))
+                .map_err(Error::IOErr)
+                .with_context(|| "Rename error".to_string())
+        } else {
+            Ok(())
         }
     }
 }
@@ -48,7 +54,7 @@ impl Downloaded {
 impl GoVersions {
     fn from_file(path: &Path) -> Result<Self> {
         let read = std::fs::read_to_string(path)?;
-        serde_json::from_str(&read).map_err(Error::JSONErr)
+        Ok(serde_json::from_str(&read)?)
     }
     fn save(&self, list_path: Option<&Path>) -> Result<()> {
         let path = if let Some(p) = list_path {

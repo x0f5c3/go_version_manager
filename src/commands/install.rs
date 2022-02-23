@@ -10,7 +10,8 @@ use crate::config::Config;
 use crate::consts::{CONFIG_PATH, DEFAULT_INSTALL};
 use crate::error::Error;
 use crate::goversion::{GoVersion, GoVersions};
-use crate::Result;
+// use crate::Result;
+use anyhow::Result;
 
 /// Install the chosen or latest golang version
 #[derive(Debug, Clone, StructOpt)]
@@ -49,14 +50,14 @@ impl Install {
         };
         if check_writable(c.install_path.parent().ok_or(Error::PathBufErr)?)? {
             let res = golang.download(None, workers)?;
-            res.unpack(&c.install_path)?;
+            res.unpack(&c.install_path, false)?;
             let bin_path = &c.install_path.join("bin");
             if !check_in_path(bin_path)? {
                 paris::info!("Directory {} not in PATH", bin_path.display());
             }
             Ok(())
         } else {
-            Err(Error::NOPerm)
+            Err(Error::NOPerm.into())
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::consts::{CONFIG_DIR, CONFIG_PATH, CURRENT_INSTALL, DEFAULT_INSTALL, VERSION_LIST};
 use crate::Error;
-use crate::Result;
 use crate::{GoVersions, FILE_EXT};
+use anyhow::Result;
 use console::Term;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;

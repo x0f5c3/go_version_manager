@@ -1,4 +1,7 @@
-use crate::{Error, Result};
+// use crate::{Error, Result};
+use crate::Error;
+use anyhow::Context;
+use anyhow::Result;
 use std::io::{BufRead, Read, Seek};
 use std::path::Path;
 
@@ -34,11 +37,13 @@ impl<R: Read + Seek + BufRead> ToDecompress<R> {
         self.decompressor
             .extract(path.parent().ok_or(Error::PathBufErr)?)
             .map_err(Error::ZIPErr)
+            .context("Unpacking error")
     }
     #[cfg(not(target_os = "windows"))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor
             .unpack(path.parent().ok_or(Error::PathBufErr)?)
             .map_err(Error::IOErr)
+            .context("Unpacking error")
     }
 }

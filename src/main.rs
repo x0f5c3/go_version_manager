@@ -13,10 +13,10 @@ pub(crate) use utils::{ask_for_version, init_consts};
 
 use crate::commands::Command;
 use crate::consts::FILE_EXT;
-use crate::error::Result;
 use crate::goversion::Downloaded;
 use crate::goversion::GoVersions;
 use crate::utils::check_and_ask;
+use anyhow::Result;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it

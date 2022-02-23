@@ -6,7 +6,8 @@ use versions::SemVer;
 
 use crate::consts::PATH_SEPERATOR;
 use crate::error::Error;
-use crate::Result;
+// use crate::Result;
+use anyhow::Result;
 
 pub(super) fn check_writable(p: &Path) -> Result<bool> {
     let res = std::fs::write(p.join("test"), "test");
@@ -23,7 +24,7 @@ pub(super) fn check_writable(p: &Path) -> Result<bool> {
 }
 
 pub(super) fn parse_version(src: &str) -> Result<SemVer> {
-    SemVer::new(src).ok_or(Error::VersParse)
+    SemVer::new(src).ok_or_else(|| Error::VersParse.into())
 }
 
 pub(super) fn check_in_path(p: &Path) -> Result<bool> {

@@ -1,7 +1,10 @@
 use crate::utils::get_local_path;
 use crate::GoVersions;
 use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+// use crate::error::Result;
+use anyhow::Result;
 use versions::SemVer;
 
 pub const DL_URL: &str = "https://go.dev/dl";
@@ -11,6 +14,55 @@ pub const PATH_SEPERATOR: &str = ";";
 
 #[cfg(not(target_os = "windows"))]
 pub const PATH_SEPERATOR: &str = ":";
+
+#[derive(Debug, Deserialize, Serialize)]
+struct SysConfig {
+    file_ext: String,
+    config_dir: PathBuf,
+    proxies: Option<String>,
+    #[serde(skip)]
+    client: manic::Client,
+    versions_list: PathBuf,
+    install_dir: PathBuf,
+    current_install: Option<PathBuf>,
+    envs_dir: PathBuf,
+}
+impl SysConfig {
+    fn default() -> Result<Self> {
+        let config_dirs = directories::BaseDirs::new()
+            .unwrap()
+            .config_dir()
+            .to_path_buf();
+        let config_path = config_dirs.join("go_manager.json");
+        if config_path.exists() {
+            let mut ret: SysConfig = toml::from_str(&std::fs::read_to_string(config_path)?)?;
+            if let Some(p) = &ret.proxies {
+                let client = manic::Client::builder()
+                    .proxy(reqwest::Proxy::http(p)?)
+                    .proxy(reqwest::Proxy::https(p)?)
+                    .build()
+                    .unwrap();
+                ret.client = client;
+            } else {
+                ret.client = manic::Client::new();
+            }
+            Ok(ret)
+        } else {
+            let ret = SysConfig {
+                file_ext: FILE_EXT.clone(),
+                config_dir: CONFIG_DIR.clone(),
+                proxies: None,
+                client: manic::Client::new(),
+                versions_list: VERSION_LIST.clone(),
+                install_dir: DEFAULT_INSTALL.clone(),
+                current_install: CURRENT_INSTALL.clone(),
+                envs_dir: ENVS_DIR.clone(),
+            };
+            std::fs::write(config_path, toml::to_string_pretty(&ret)?)?;
+            Ok(ret)
+        }
+    }
+}
 
 lazy_static! {
     pub static ref FILE_EXT: String = {

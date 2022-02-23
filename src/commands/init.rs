@@ -4,7 +4,8 @@ use structopt::StructOpt;
 
 use crate::config::Config;
 use crate::consts::{CONFIG_PATH, CURRENT_INSTALL, DEFAULT_INSTALL};
-use crate::Result;
+// use crate::Result;
+use anyhow::Result;
 
 /// Initialize the config
 #[derive(Debug, Clone, StructOpt)]

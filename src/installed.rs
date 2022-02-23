@@ -1,6 +1,7 @@
 use crate::consts::PATH_SEPERATOR;
 use crate::goversion::GoVersion;
-use crate::Result;
+// use crate::Result;
+use anyhow::Result;
 use rayon::prelude::*;
 use regex::Regex;
 use std::path::{Path, PathBuf};

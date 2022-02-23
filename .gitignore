@@ -8,3 +8,4 @@ Cargo.lock
 .idea/
 *.zip
 *.tar.gz
+.DS_Store

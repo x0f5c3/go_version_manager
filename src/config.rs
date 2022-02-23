@@ -1,7 +1,8 @@
 use crate::consts::VERSION_LIST;
 use crate::goversion::GoVersion;
 use crate::utils::get_local_version;
-use crate::{Error, GoVersions, Result};
+use crate::GoVersions;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
@@ -18,7 +19,7 @@ pub(crate) struct Config {
 impl Config {
     fn from_file(path: PathBuf) -> Result<Self> {
         let conf = fs::read_to_string(&path)?;
-        serde_json::from_str(&conf).map_err(Error::JSONErr)
+        Ok(serde_json::from_str(&conf)?)
     }
     pub fn new(install_path: PathBuf, config_path: PathBuf) -> Result<Self> {
         if config_path.exists() {

@@ -2,7 +2,8 @@ use structopt::StructOpt;
 
 use {completions::Completions, download::Download, init::Init, install::Install, update::Update};
 
-use crate::Result;
+// use crate::Result;
+use anyhow::Result;
 
 mod completions;
 mod download;

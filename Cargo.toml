@@ -36,7 +36,14 @@ rayon = "*"
 lazy_static = "*"
 serde = { version = "*", features = ["derive"] }
 itertools = "*"
+anyhow = "*"
 regex = "*"
+toml = { version = "0.5.8", features = ["preserve_order"] }
+
+
+[dependencies.reqwest]
+version = "*"
+features = ["blocking"]
 
 [dependencies.manic]
 version = "*"

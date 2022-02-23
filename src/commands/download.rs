@@ -7,8 +7,9 @@ use versions::SemVer;
 use crate::consts::FILE_EXT;
 use crate::error::Error;
 use crate::goversion::{GoVersion, GoVersions};
-use crate::Result;
+// use crate::Result;
 use crate::{ask_for_version, Downloaded};
+use anyhow::Result;
 
 use super::utils::parse_version;
 

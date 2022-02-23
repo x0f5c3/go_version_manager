@@ -32,4 +32,6 @@ pub enum Error {
     UpdateErr(#[from] self_update::errors::Error),
     #[error("Regex error: {0}")]
     RegexErr(#[from] regex::Error),
+    #[error("TOML serializer error: {0}")]
+    TOMLErr(#[from] toml::ser::Error),
 }
