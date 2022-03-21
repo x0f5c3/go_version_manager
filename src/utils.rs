@@ -13,6 +13,7 @@ use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
 use versions::SemVer;
 
+// TODO add checks for homebrew installs
 pub(crate) fn get_local_path() -> Result<Option<PathBuf>> {
     let cmd = if cfg!(windows) {
         "(Get-Command go).Path"
