@@ -20,7 +20,7 @@ use anyhow::Result;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
-#[paw::main]
+#[clap::main]
 #[quit::main]
 fn main(opt: Command) -> Result<()> {
     #[cfg(debug_assertions)]
