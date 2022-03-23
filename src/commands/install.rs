@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use dialoguer::console::Term;
-use structopt::StructOpt;
+use clap::Parser;
 use versions::SemVer;
 
 use crate::ask_for_version;
@@ -14,17 +14,17 @@ use crate::goversion::{GoVersion, GoVersions};
 use anyhow::Result;
 
 /// Install the chosen or latest golang version
-#[derive(Debug, Clone, StructOpt)]
+#[derive(Debug, Clone, Parser)]
 pub(crate) struct Install {
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     config_path: Option<PathBuf>,
-    #[structopt(parse(from_os_str), conflicts_with("config_path"))]
+    #[clap(parse(from_os_str), conflicts_with("config_path"))]
     install_path: Option<PathBuf>,
-    #[structopt(short, long)]
+    #[clap(short, long)]
     workers: Option<u8>,
-    #[structopt(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
+    #[clap(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
     version: Option<SemVer>,
-    #[structopt(short, long)]
+    #[clap(short, long)]
     interactive: bool,
 }
 

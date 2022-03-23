@@ -1,4 +1,3 @@
-use crate::utils::get_local_path;
 use crate::GoVersions;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
@@ -24,7 +23,6 @@ struct SysConfig {
     client: manic::Client,
     versions_list: PathBuf,
     install_dir: PathBuf,
-    current_install: Option<PathBuf>,
     envs_dir: PathBuf,
 }
 impl SysConfig {
@@ -48,14 +46,18 @@ impl SysConfig {
             }
             Ok(ret)
         } else {
+            let install_dir = which::which("go")
+                .ok()
+                .and_then(|x| x.parent().map(|x| x.to_path_buf()))
+                .and_then(|x| x.parent().map(|x| x.to_path_buf()))
+                .unwrap_or_else(|| DEFAULT_INSTALL.to_path_buf());
             let ret = SysConfig {
                 file_ext: FILE_EXT.clone(),
                 config_dir: CONFIG_DIR.clone(),
                 proxies: None,
                 client: manic::Client::new(),
                 versions_list: VERSION_LIST.clone(),
-                install_dir: DEFAULT_INSTALL.clone(),
-                current_install: CURRENT_INSTALL.clone(),
+                install_dir,
                 envs_dir: ENVS_DIR.clone(),
             };
             std::fs::write(config_path, toml::to_string_pretty(&ret)?)?;
@@ -107,7 +109,7 @@ lazy_static! {
             PathBuf::from("/usr/local/go")
         }
     };
-    pub static ref CURRENT_INSTALL: Option<PathBuf> = get_local_path().unwrap_or(None);
+    pub static ref CURRENT_INSTALL: Option<PathBuf> = which::which("go").ok();
     pub static ref ENVS_DIR: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
     pub static ref GIT_VERSIONS: Vec<SemVer> = {
         let output = GoVersions::raw_git_versions().unwrap();

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::commands::utils::check_writable;
 use crate::config::Config;
@@ -11,13 +11,13 @@ use crate::goversion::GoVersions;
 use anyhow::{Context, Result};
 
 /// Update the existing instalation
-#[derive(Debug, Clone, StructOpt)]
+#[derive(Debug, Clone, Parser)]
 pub(crate) struct Update {
-    #[structopt(short, long)]
+    #[clap(short, long)]
     workers: Option<u8>,
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     config_path: Option<PathBuf>,
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     install_path: Option<PathBuf>,
 }
 

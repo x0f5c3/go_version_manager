@@ -43,7 +43,7 @@ jobs:
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
         asset_path: target/release/go_version_manager
-        asset_name: go_version_manager-linux-amd64
+        asset_name: go_version_manager-x86_64-unknown-linux-gnu
         asset_content_type: application/octet-stream
   build_arm64:
     needs: [create_release]
@@ -70,12 +70,12 @@ jobs:
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: target/aarch64-unknown-linux-gnu/release/go_version_manager
-          asset_name: go_version_manager-linux-arm64
+          asset_name: go_version_manager-aarch64-unknown-linux-gnu
           asset_content_type: application/octet-stream
   build_arm64_darwin:
     needs: [ create_release ]
     name: Publish binaries for apple silicon
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -97,7 +97,7 @@ jobs:
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: target/aarch64-apple-darwin/release/go_version_manager
-          asset_name: go_version_manager-darwin-arm64
+          asset_name: go_version_manager-aarch64-apple-darwin
           asset_content_type: application/octet-stream
   build_x64_win:
     needs: [create_release]
@@ -116,7 +116,7 @@ jobs:
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
         asset_path: target/release/go_version_manager.exe
-        asset_name: go_version_manager-windows-amd64.exe
+        asset_name: go_version_manager-x86_64-pc-windows-msvc.exe
         asset_content_type: application/octet-stream
 
   build_x64_mac:
@@ -136,5 +136,5 @@ jobs:
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
         asset_path: target/release/go_version_manager
-        asset_name: go_version_manager-darwin-amd64
+        asset_name: go_version_manager-x86_64-apple-darwin
         asset_content_type: application/octet-stream

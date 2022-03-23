@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::config::Config;
 use crate::consts::{CONFIG_PATH, CURRENT_INSTALL, DEFAULT_INSTALL};
@@ -8,11 +8,11 @@ use crate::consts::{CONFIG_PATH, CURRENT_INSTALL, DEFAULT_INSTALL};
 use anyhow::Result;
 
 /// Initialize the config
-#[derive(Debug, Clone, StructOpt)]
+#[derive(Debug, Clone, Parser)]
 pub(crate) struct Init {
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     config_path: Option<PathBuf>,
-    #[structopt(parse(from_os_str))]
+    #[clap(parse(from_os_str))]
     install_path: Option<PathBuf>,
 }
 

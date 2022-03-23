@@ -13,31 +13,6 @@ use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
 use versions::SemVer;
 
-// TODO add checks for homebrew installs
-pub(crate) fn get_local_path() -> Result<Option<PathBuf>> {
-    let cmd = if cfg!(windows) {
-        "(Get-Command go).Path"
-    } else {
-        "which"
-    };
-    duct::cmd!(cmd, "go")
-        .read()
-        .map(|x| {
-            PathBuf::from(x)
-                .parent()
-                .into_iter()
-                .filter_map(|x| x.parent())
-                .next()
-                .map(|x| x.to_path_buf())
-        })
-        .or_else(|x| {
-            if x.kind() == std::io::ErrorKind::NotFound {
-                return Ok(None);
-            }
-            Err(x.into())
-        })
-}
-
 pub(crate) fn init_consts() {
     lazy_static::initialize(&FILE_EXT);
     lazy_static::initialize(&CURRENT_INSTALL);

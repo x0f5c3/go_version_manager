@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use dialoguer::console::Term;
-use structopt::StructOpt;
+use clap::Parser;
 use versions::SemVer;
 
 use crate::consts::FILE_EXT;
@@ -14,15 +14,15 @@ use anyhow::Result;
 use super::utils::parse_version;
 
 /// Download golang version to file
-#[derive(Debug, Clone, StructOpt)]
+#[derive(Debug, Clone, Parser)]
 pub(crate) struct Download {
-    #[structopt(parse(from_os_str))]
+    #[clap(parse(from_os_str))]
     output: PathBuf,
-    #[structopt(short, long)]
+    #[clap(short, long)]
     workers: Option<u8>,
-    #[structopt(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
+    #[clap(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
     version: Option<SemVer>,
-    #[structopt(short, long)]
+    #[clap(short, long)]
     interactive: bool,
 }
 

@@ -1,5 +1,5 @@
-use structopt::StructOpt;
 use clap::Parser;
+use clap::Subcommand;
 
 use {completions::Completions, download::Download, init::Init, install::Install, update::Update};
 
@@ -15,18 +15,25 @@ mod install;
 mod update;
 mod utils;
 
+
 #[derive(Debug, Parser)]
-/// I will download Go language install and check its hash to verify I did it correctly{n}Keep calm and carry on
+#[clap(name = "go_version_manager")]
+#[clap(author = "x0f5c3 <x0f5c3@tutanota.com>")]
+#[clap(version = shadow::CLAP_LONG_VERSION)]
+/// I will download Go language install and check its hash to verify I did it correctly
+///
+/// Keep calm and carry on
+pub(crate) struct Opt {
+    #[clap(subcommand)]
+    pub(crate) subcommand: Command,
+}
+
+#[derive(Debug, Subcommand)]
 pub(crate) enum Command {
-    #[clap(subcommand)]
     Init(Init),
-    #[clap(subcommand)]
     Update(Update),
-    #[clap(subcommand)]
     Install(Install),
-    #[clap(subcommand)]
     Download(Download),
-    #[clap(subcommand)]
     Completions(Completions),
 }
 

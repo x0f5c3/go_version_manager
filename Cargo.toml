@@ -21,8 +21,7 @@ versions = { version = "3.0.3", features = ["serde"] }
 indicatif = { version = "0.16.0", features = ["rayon", "improved_unicode"] }
 human-panic = "1.0.3"
 clap = { git = "https://github.com/x0f5c3/clap", branch="master", features = ["cargo", "derive", "wrap_help", "unicode", "regex", "unstable-replace"] }
-clap_complete = "3.1.1"
-structopt = { version = "0.3.21", features = ["paw", "wrap_help"] }
+clap_complete = { git = "https://github.com/x0f5c3/clap", branch="master" }
 directories = "4.0.1"
 paw = "*"
 console = "0.14.0"
@@ -42,6 +41,7 @@ anyhow = "*"
 regex = "*"
 toml = { version = "0.5.8", features = ["preserve_order"] }
 shadow-rs = "0.11.0"
+which = "4.2.5"
 
 
 
