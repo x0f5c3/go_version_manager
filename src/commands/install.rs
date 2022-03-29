@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use dialoguer::console::Term;
 use clap::Parser;
+use dialoguer::console::Term;
 use versions::SemVer;
 
 use crate::ask_for_version;

@@ -23,7 +23,6 @@ human-panic = "1.0.3"
 clap = { git = "https://github.com/x0f5c3/clap", branch="master", features = ["cargo", "derive", "wrap_help", "unicode", "regex", "unstable-replace"] }
 clap_complete = { git = "https://github.com/x0f5c3/clap", branch="master" }
 directories = "4.0.1"
-paw = "*"
 console = "0.14.0"
 git2 = { version = "*", features = ["vendored-libgit2", "vendored-openssl"] }
 num_cpus = "1.13.0"

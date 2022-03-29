@@ -5,14 +5,11 @@
 extern crate lazy_static;
 
 use console::Term;
-use human_panic::setup_panic;
-use std::path::PathBuf;
-use clap::Parser;
-
 use error::Error;
+use human_panic::setup_panic;
 pub(crate) use utils::{ask_for_version, init_consts};
 
-use crate::commands::{Command, Opt};
+use crate::commands::Opt;
 use crate::consts::FILE_EXT;
 use crate::goversion::Downloaded;
 use crate::goversion::GoVersions;
@@ -21,16 +18,16 @@ use anyhow::Result;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it
+#[clap::main]
 #[quit::main]
-fn main() -> Result<()> {
-    let opt = Opt::try_parse()?;
+fn main(opt: Opt) -> Result<()> {
     #[cfg(debug_assertions)]
     let now = std::time::Instant::now();
     setup_panic!();
     init_consts();
     pretty_env_logger::init();
     check_and_ask(&Term::stdout())?;
-    let res = opt.subcommand.run();
+    let res = opt.run();
     if let Err(e) = res {
         paris::error!("Error: {}", e);
     }
@@ -47,4 +44,3 @@ mod error;
 mod goversion;
 mod installed;
 mod utils;
-

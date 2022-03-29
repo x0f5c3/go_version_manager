@@ -10,7 +10,7 @@ use self_update::cargo_crate_version;
 use self_update::update::ReleaseUpdate;
 use std::fmt;
 use std::fmt::Formatter;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use versions::SemVer;
 
 pub(crate) fn init_consts() {

@@ -1,8 +1,8 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use clap::{CommandFactory, Parser};
 use anyhow::Result;
+use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
 
 /// Generate completions
@@ -17,7 +17,12 @@ pub(crate) struct Completions {
 impl Completions {
     pub(crate) fn run(self) -> Result<()> {
         let mut out = File::create(self.out_dir.join("_go_version_manager"))?;
-        generate(self.shell, &mut Self::command(), "go_version_manager", &mut out);
+        generate(
+            self.shell,
+            &mut Self::command(),
+            "go_version_manager",
+            &mut out,
+        );
         Ok(())
     }
 }
