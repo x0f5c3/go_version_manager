@@ -6,14 +6,15 @@ use crate::utils::get_local_version;
 use anyhow::Context;
 use anyhow::Result;
 use git2::{Direction, Remote};
+use indicatif::ParallelProgressIterator;
 use manic::Downloader;
 use rayon::prelude::*;
+use semver::Version;
 use serde::{Deserialize, Serialize};
 use soup::prelude::*;
 use soup::Soup;
 use std::io::{BufReader, Cursor, Write};
 use std::path::{Path, PathBuf};
-use versions::{SemVer, Versioning};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GoVersions {
@@ -113,16 +114,29 @@ impl GoVersions {
             .collect();
         Ok(output)
     }
-    pub fn parse_versions(versions: Vec<String>) -> Result<Vec<SemVer>> {
-        let mut parsed: Vec<SemVer> = versions
-            .iter()
-            .filter_map(|x| Versioning::new(x.as_ref()))
-            .filter_map(|x| match x {
-                Versioning::Ideal(s) => Some(s),
-                _ => None,
+    pub fn parse_versions(versions: Vec<String>) -> Result<Vec<Version>> {
+        let mut parsed: Vec<Version> = versions
+            .par_iter()
+            .progress()
+            .map(|x| {
+                if x.split('.').count() == 2 {
+                    format!("{x}.0")
+                } else {
+                    x.to_string()
+                }
+            })
+            .filter_map(|x| semver::Version::parse(x.as_ref()).ok())
+            .filter_map(|x| match x.pre.is_empty() {
+                true => {
+                    if x.patch == 0 {
+                        println!("Found one: {x}");
+                    }
+                    Some(x)
+                }
+                false => None,
             })
             .collect();
-        parsed.sort_unstable_by(|a, b| b.cmp(a));
+        parsed.par_sort_unstable_by(|a, b| b.cmp(a));
         Ok(parsed)
     }
     pub fn download_latest() -> Result<GoVersion> {
@@ -180,7 +194,7 @@ impl GoVersions {
         let sha = found.tag("tt").find().ok_or(Error::NoSha)?.text();
         Ok(sha)
     }
-    pub fn download_chosen(vers: SemVer) -> Result<GoVersion> {
+    pub fn download_chosen(vers: Version) -> Result<GoVersion> {
         let sha = Self::sha(&vers, &DL_PAGE)?;
         let url = Self::construct_url(&vers);
         Ok(GoVersion::new(vers, url, sha))
@@ -189,7 +203,7 @@ impl GoVersions {
     fn construct_url(vers: impl std::fmt::Display) -> String {
         return format!("{}/go{}.{}", DL_URL, vers, FILE_EXT.as_str());
     }
-    pub fn chosen_version(&self, vers: SemVer) -> Result<GoVersion> {
+    pub fn chosen_version(&self, vers: Version) -> Result<GoVersion> {
         let res = self
             .versions
             .par_iter()
@@ -203,7 +217,7 @@ impl GoVersions {
 /// Golang version represented as a struct
 pub struct GoVersion {
     /// Holds the golang version
-    pub version: SemVer,
+    pub version: Version,
     /// Holds the download url for the version
     pub dl_url: String,
     /// Holds the sha256 checksum
@@ -211,7 +225,7 @@ pub struct GoVersion {
 }
 
 impl GoVersion {
-    pub(crate) fn new(version: SemVer, dl_url: String, sha256: String) -> Self {
+    pub(crate) fn new(version: Version, dl_url: String, sha256: String) -> Self {
         Self {
             version,
             dl_url,

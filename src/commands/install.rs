@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use dialoguer::console::Term;
-use versions::SemVer;
+use semver::Version;
 
 use crate::ask_for_version;
 use crate::commands::utils::{check_in_path, check_writable, parse_version};
@@ -23,7 +23,7 @@ pub(crate) struct Install {
     #[clap(short, long)]
     workers: Option<u8>,
     #[clap(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
-    version: Option<SemVer>,
+    version: Option<Version>,
     #[clap(short, long)]
     interactive: bool,
 }

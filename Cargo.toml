@@ -17,7 +17,6 @@ categories = ["command-line-utilities","development-tools"]
 [dependencies]
 soup = "0.5.1"
 pretty_env_logger = "0.4.0"
-versions = { version = "3.0.3", features = ["serde"] }
 indicatif = { version = "0.16.0", features = ["rayon", "improved_unicode"] }
 human-panic = "1.0.3"
 clap = { git = "https://github.com/x0f5c3/clap", branch="master", features = ["cargo", "derive", "wrap_help", "unicode", "regex", "unstable-replace"] }
@@ -42,6 +41,9 @@ toml = { version = "0.5.8", features = ["preserve_order"] }
 shadow-rs = "0.11.0"
 which = "4.2.5"
 
+[dependencies.semver]
+version = "1.0.7"
+features = ["serde"]
 
 
 [build-dependencies]

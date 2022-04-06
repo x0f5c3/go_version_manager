@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 // use crate::error::Result;
 use anyhow::Result;
-use versions::SemVer;
+use semver::Version;
 
 pub const DL_URL: &str = "https://go.dev/dl";
 
@@ -111,7 +111,7 @@ lazy_static! {
     };
     pub static ref CURRENT_INSTALL: Option<PathBuf> = which::which("go").ok();
     pub static ref ENVS_DIR: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
-    pub static ref GIT_VERSIONS: Vec<SemVer> = {
+    pub static ref GIT_VERSIONS: Vec<Version> = {
         let output = GoVersions::raw_git_versions().unwrap();
         GoVersions::parse_versions(output).unwrap()
     };

@@ -2,12 +2,12 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use itertools::Itertools;
-use versions::SemVer;
+use semver::Version;
 
 use crate::consts::PATH_SEPERATOR;
 use crate::error::Error;
 // use crate::Result;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 pub(super) fn check_writable(p: &Path) -> Result<bool> {
     let res = std::fs::write(p.join("test"), "test");
@@ -23,8 +23,8 @@ pub(super) fn check_writable(p: &Path) -> Result<bool> {
     }
 }
 
-pub(super) fn parse_version(src: &str) -> Result<SemVer> {
-    SemVer::new(src).ok_or_else(|| Error::VersParse.into())
+pub(super) fn parse_version(src: &str) -> Result<Version> {
+    Version::parse(src).context("Failed to parse version")
 }
 
 pub(super) fn check_in_path(p: &Path) -> Result<bool> {

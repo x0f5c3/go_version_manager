@@ -11,7 +11,7 @@ use self_update::update::ReleaseUpdate;
 use std::fmt;
 use std::fmt::Formatter;
 use std::path::Path;
-use versions::SemVer;
+use semver::Version;
 
 pub(crate) fn init_consts() {
     lazy_static::initialize(&FILE_EXT);
@@ -22,12 +22,12 @@ pub(crate) fn init_consts() {
     lazy_static::initialize(&CONFIG_DIR);
 }
 
-pub(crate) fn ask_for_version(term: &Term, versions: &GoVersions) -> Result<SemVer> {
+pub(crate) fn ask_for_version(term: &Term, versions: &GoVersions) -> Result<Version> {
     let versions = versions
         .versions
         .iter()
         .map(|x| x.version.clone())
-        .collect::<Vec<SemVer>>();
+        .collect::<Vec<Version>>();
     let selection = Select::with_theme(&ColorfulTheme::default())
         .items(&versions)
         .default(0)
@@ -41,7 +41,7 @@ pub(crate) fn ask_for_version(term: &Term, versions: &GoVersions) -> Result<SemV
     }
 }
 
-pub(crate) fn get_local_version(path: &Path) -> Result<Option<SemVer>> {
+pub(crate) fn get_local_version(path: &Path) -> Result<Option<Version>> {
     duct::cmd!(
         path.join("bin/go").to_str().ok_or(Error::PathBufErr)?,
         "version"
@@ -50,7 +50,7 @@ pub(crate) fn get_local_version(path: &Path) -> Result<Option<SemVer>> {
     .map(|x| {
         x.split(' ')
             .nth(2)
-            .and_then(|x| SemVer::new(&x.replace("go", "")))
+            .and_then(|x| Version::parse(&x.replace("go", "")).ok())
     })
     .or_else(|x| {
         if x.kind() == std::io::ErrorKind::NotFound {

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use dialoguer::console::Term;
-use versions::SemVer;
+use semver::Version;
 
 use crate::consts::FILE_EXT;
 use crate::error::Error;
@@ -21,7 +21,7 @@ pub(crate) struct Download {
     #[clap(short, long)]
     workers: Option<u8>,
     #[clap(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
-    version: Option<SemVer>,
+    version: Option<Version>,
     #[clap(short, long)]
     interactive: bool,
 }
