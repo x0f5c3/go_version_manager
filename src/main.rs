@@ -14,6 +14,7 @@ use crate::consts::FILE_EXT;
 use crate::goversion::Downloaded;
 use crate::goversion::GoVersions;
 use crate::utils::check_and_ask;
+
 use anyhow::Result;
 
 /// Reads output path from command line arguments
@@ -41,6 +42,7 @@ mod config;
 mod consts;
 mod decompressor;
 mod error;
+mod github;
 mod goversion;
 mod installed;
 mod utils;
