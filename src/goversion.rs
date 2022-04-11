@@ -81,12 +81,12 @@ impl GoVersions {
         } else {
             &VERSION_LIST
         };
-        if path.exists() {
-            let to_cmp = Self::from_file(path)?;
-            if to_cmp.latest.version == latest.version {
-                return Ok(to_cmp);
-            }
-        }
+        // if path.exists() {
+        //     let to_cmp = Self::from_file(path)?;
+        //     if to_cmp.latest.version == latest.version {
+        //         return Ok(to_cmp);
+        //     }
+        // }
         let mut vers = Self::download_versions()?;
         vers.par_sort_unstable_by(|a, b| b.version.cmp(&a.version));
         let latest = vers.first().cloned().ok_or(Error::NoVersion)?;
