@@ -1,4 +1,4 @@
-use crate::GoVersions;
+use crate::{Error, GoVersions};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -24,45 +24,69 @@ struct SysConfig {
     versions_list: PathBuf,
     install_dir: PathBuf,
     envs_dir: PathBuf,
+    current: Option<Version>,
 }
 impl SysConfig {
-    fn default() -> Result<Self> {
+    pub fn default() -> Result<Self> {
         let config_dirs = directories::BaseDirs::new()
-            .unwrap()
+            .ok_or(Error::NOProjectDir)?
             .config_dir()
             .to_path_buf();
-        let config_path = config_dirs.join("go_manager.json");
+        let config_path = config_dirs.join("go_manager.toml");
         if config_path.exists() {
             let mut ret: SysConfig = toml::from_str(&std::fs::read_to_string(config_path)?)?;
             if let Some(p) = &ret.proxies {
                 let client = manic::Client::builder()
-                    .proxy(reqwest::Proxy::http(p)?)
-                    .proxy(reqwest::Proxy::https(p)?)
-                    .build()
-                    .unwrap();
+                    .proxy(reqwest::Proxy::all(p)?)
+                    .build()?;
                 ret.client = client;
             } else {
                 ret.client = manic::Client::new();
             }
             Ok(ret)
         } else {
-            let install_dir = which::which("go")
+            let (install_dir, version): (PathBuf, Option<Version>) = which::which("go")
                 .ok()
-                .and_then(|x| x.parent().map(|x| x.to_path_buf()))
-                .and_then(|x| x.parent().map(|x| x.to_path_buf()))
-                .unwrap_or_else(|| DEFAULT_INSTALL.to_path_buf());
+                .and_then(|x| {
+                    let vers = duct::cmd!(&x, "version")
+                        .read()
+                        .ok()?
+                        .split(' ')
+                        .nth(2)?
+                        .replace("go", "");
+                    Some((
+                        x.parent().map(|x| x.to_path_buf())?,
+                        Version::parse(&vers).ok(),
+                    ))
+                })
+                .and_then(|(x, y)| Some((x.parent().map(|x| x.to_path_buf())?, y)))
+                .unwrap_or_else(|| (DEFAULT_INSTALL.to_path_buf(), None));
+            let versions_list = config_dirs.join("versions.toml");
             let ret = SysConfig {
                 file_ext: FILE_EXT.clone(),
-                config_dir: CONFIG_DIR.clone(),
+                config_dir: config_dirs,
                 proxies: None,
                 client: manic::Client::new(),
-                versions_list: VERSION_LIST.clone(),
+                versions_list,
                 install_dir,
                 envs_dir: ENVS_DIR.clone(),
+                current: version,
             };
             std::fs::write(config_path, toml::to_string_pretty(&ret)?)?;
             Ok(ret)
         }
+    }
+    pub fn from_path(file: PathBuf) -> Result<Self> {
+        let mut ret: SysConfig = toml::from_str(&std::fs::read_to_string(file)?)?;
+        if let Some(p) = &ret.proxies {
+            let client = manic::Client::builder()
+                .proxy(reqwest::Proxy::all(p)?)
+                .build()?;
+            ret.client = client;
+        } else {
+            ret.client = manic::Client::new();
+        }
+        Ok(ret)
     }
 }
 

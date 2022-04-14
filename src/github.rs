@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use itertools::Itertools;
 use manic::Client;
 use serde_json::Value;
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 pub fn get_tags() -> Result<Vec<String>> {
     let client = Client::builder().user_agent("rust_api").build()?;
@@ -12,7 +12,7 @@ pub fn get_tags() -> Result<Vec<String>> {
     Ok(resp
         .as_array()
         .context("Not an array")?
-        .iter()
+        .par_iter()
         .filter_map(|x| {
             // println!("{}", x);
             x.as_object()
@@ -24,5 +24,5 @@ pub fn get_tags() -> Result<Vec<String>> {
         })
         .filter(|x| x.contains("go"))
         .map(|x| x.to_string())
-        .collect_vec())
+        .collect::<Vec<String>>())
 }

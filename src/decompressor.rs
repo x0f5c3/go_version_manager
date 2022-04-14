@@ -4,6 +4,7 @@ use anyhow::Context;
 use anyhow::Result;
 use std::io::{BufRead, Read, Seek};
 use std::path::Path;
+use tracing::instrument;
 
 #[cfg(not(target_os = "windows"))]
 use flate2::bufread::GzDecoder;
@@ -33,6 +34,7 @@ impl<R: Read + Seek + BufRead> ToDecompress<R> {
         Ok(Self { decompressor: dec })
     }
     #[cfg(target_os = "windows")]
+    #[instrument(skil(self))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor
             .extract(path.parent().ok_or(Error::PathBufErr)?)
@@ -40,6 +42,7 @@ impl<R: Read + Seek + BufRead> ToDecompress<R> {
             .context("Unpacking error")
     }
     #[cfg(not(target_os = "windows"))]
+    #[instrument(skip(self))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor
             .unpack(path.parent().ok_or(Error::PathBufErr)?)

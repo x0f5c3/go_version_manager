@@ -4,22 +4,39 @@ use crate::error::Error;
 // use crate::error::Result;
 use crate::utils::get_local_version;
 use anyhow::Context;
+
 use anyhow::Result;
 use git2::{Direction, Remote};
-use indicatif::ParallelProgressIterator;
+
+use itertools::Itertools;
 use manic::Downloader;
 use rayon::prelude::*;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use soup::prelude::*;
 use soup::Soup;
+use std::fmt;
+use std::fmt::Formatter;
 use std::io::{BufReader, Cursor, Write};
 use std::path::{Path, PathBuf};
+use tracing::instrument;
+use tracing::{debug, error, warn};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GoVersions {
     latest: GoVersion,
     pub versions: Vec<GoVersion>,
+}
+
+impl fmt::Display for GoVersions {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Latest {}\nGot {} versions",
+            self.latest,
+            self.versions.len()
+        )
+    }
 }
 
 pub enum Downloaded {
@@ -28,6 +45,7 @@ pub enum Downloaded {
 }
 
 impl Downloaded {
+    #[instrument(err, ret, skip(self))]
     pub(crate) fn unpack(&self, path: &Path, rename: bool) -> Result<()> {
         let par = path.parent().ok_or(Error::PathBufErr)?;
         let vers = match self {
@@ -53,10 +71,12 @@ impl Downloaded {
 }
 
 impl GoVersions {
+    #[instrument(err, ret(Display))]
     fn from_file(path: &Path) -> Result<Self> {
         let read = std::fs::read_to_string(path)?;
         Ok(serde_json::from_str(&read)?)
     }
+    #[instrument(err)]
     fn save(&self, list_path: Option<&Path>) -> Result<()> {
         let path = if let Some(p) = list_path {
             p
@@ -73,14 +93,15 @@ impl GoVersions {
         file.sync_all()?;
         Ok(())
     }
+    #[instrument(err, ret)]
     pub fn new(list_path: Option<&Path>) -> Result<Self> {
         // let client = Client::new();
-        let latest = Self::download_latest()?;
-        let path = if let Some(p) = list_path {
-            p
-        } else {
-            &VERSION_LIST
-        };
+        // let latest = Self::download_latest()?;
+        // let path = if let Some(p) = list_path {
+        //     p
+        // } else {
+        //     &VERSION_LIST
+        // };
         // if path.exists() {
         //     let to_cmp = Self::from_file(path)?;
         //     if to_cmp.latest.version == latest.version {
@@ -101,6 +122,7 @@ impl GoVersions {
         self.latest.clone()
     }
 
+    #[instrument(ret)]
     /// Gets golang versions from git tags
     pub fn raw_git_versions() -> Result<Vec<String>> {
         let mut remote = Remote::create_detached("https://github.com/golang/go")?;
@@ -114,46 +136,98 @@ impl GoVersions {
             .collect();
         Ok(output)
     }
+    #[instrument(fields(before=%versions.join(",")))]
     pub fn parse_versions(versions: Vec<String>) -> Result<Vec<Version>> {
+        enum IdealOrNot {
+            Ideal(String),
+            Not(Version),
+        }
         let mut parsed: Vec<Version> = versions
             .par_iter()
-            .progress()
-            .map(|x| {
-                if x.split('.').count() == 2 {
-                    format!("{x}.0")
+            .filter_map(|x| {
+                let split = x.split('.').collect_vec();
+                if split.len() == 2 {
+                    debug!("We got one without the one: {:#?}", split);
+                    let major = split.get(0)?;
+                    let minor = split.get(1)?;
+                    debug!("Major: {}, minor: {}", major, minor);
+                    Some(IdealOrNot::Not(semver::Version::new(
+                        major.parse().ok()?,
+                        minor.parse().ok()?,
+                        0,
+                    )))
                 } else {
-                    x.to_string()
+                    Some(IdealOrNot::Ideal(x.to_string()))
                 }
             })
-            .filter_map(|x| semver::Version::parse(x.as_ref()).ok())
-            .filter_map(|x| match x.pre.is_empty() {
-                true => {
-                    if x.patch == 0 {
-                        println!("Found one: {x}");
-                    }
-                    Some(x)
-                }
-                false => None,
+            .filter_map(|x| match x {
+                IdealOrNot::Ideal(s) => Version::parse(&s).ok(),
+                IdealOrNot::Not(v) => Some(v),
             })
+            // .filter_map(|x| match x.pre.is_empty() {
+            //     true => {
+            //         if x.patch == 0 && x.minor == 18 {
+            //             log!(Level::Info,  "Found one: {}", x);
+            //         }
+            //         Some(x)
+            //     }
+            //     false => None,
+            // })
             .collect();
         parsed.par_sort_unstable_by(|a, b| b.cmp(a));
         Ok(parsed)
+    }
+    pub fn get_versions() -> Result<Vec<Version>> {
+        let raw = GoVersions::raw_git_versions()?;
+        GoVersions::parse_versions(raw)
     }
     pub fn download_latest() -> Result<GoVersion> {
         let latest = GIT_VERSIONS.first().ok_or(Error::NoVersion)?;
         let govers = Self::download_chosen(latest.clone())?;
         Ok(govers)
     }
+    #[instrument(name = "parsing_versions", err(Display))]
+    pub fn parsed_versions() -> Result<Vec<Version>> {
+        let git = Self::raw_git_versions()?;
+        let mut res = Vec::new();
+        for i in git {
+            let split = i.split('.').collect_vec();
+            if split.len() < 3 {
+                let minor = if let Some(s) = split.get(1) {
+                    match s.parse::<u64>() {
+                        Ok(d) => d,
+                        Err(e) => {
+                            error!("Failed to parse {} minor to u64 due to {}", s, e);
+                            continue;
+                        }
+                    }
+                } else {
+                    0_u64
+                };
+                res.push(Version::new(split[0].parse()?, minor, 0));
+            } else {
+                match Version::parse(&i) {
+                    Ok(s) => res.push(s),
+                    Err(e) => {
+                        error!("Failed to parse version {} due to {}", i, e);
+                        paris::error!("Failed to parse version {} due to {}", i, e);
+                        continue;
+                    }
+                }
+            }
+        }
+        Ok(res)
+    }
     /// Parses the versions into Versioning structs
     pub fn download_versions() -> Result<Vec<GoVersion>> {
-        Ok(GIT_VERSIONS
+        Ok(Self::raw_git_versions()?
             .par_iter()
             .filter_map(|x| {
                 let sha = Self::sha(x, &DL_PAGE).ok();
                 if let Some(s) = sha {
                     let url = Self::construct_url(x);
                     Some(GoVersion {
-                        version: x.clone(),
+                        version: Version::parse(x).ok()?,
                         sha256: s,
                         dl_url: url,
                     })
@@ -222,6 +296,16 @@ pub struct GoVersion {
     pub dl_url: String,
     /// Holds the sha256 checksum
     sha256: String,
+}
+
+impl fmt::Display for GoVersion {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Version: {}\nDownload URL: {}\nSHA256: {}",
+            self.version, self.dl_url, self.sha256
+        )
+    }
 }
 
 impl GoVersion {
