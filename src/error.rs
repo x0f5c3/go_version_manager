@@ -2,11 +2,10 @@ use anyhow::anyhow;
 use std::env::VarError;
 use std::fmt;
 use std::fmt::Formatter;
-use std::path::PathBuf;
 use thiserror::Error;
 use tracing_error::SpanTrace;
 
-pub type Result<T> = std::result::Result<T, WrappedError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -41,6 +40,8 @@ pub enum Error {
     TOMLErr(#[from] toml::ser::Error),
     #[error("Can't find project dirs")]
     NOProjectDir,
+    #[error("Clap parsing error")]
+    ClapErr(String)
 }
 
 #[derive(Debug)]

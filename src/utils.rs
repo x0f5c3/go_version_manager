@@ -12,6 +12,7 @@ use semver::Version;
 use std::fmt;
 use std::fmt::Formatter;
 use std::path::Path;
+use serde::Serialize;
 
 pub(crate) fn init_consts() {
     lazy_static::initialize(&FILE_EXT);
@@ -138,5 +139,22 @@ pub(crate) fn self_update() -> Result<()> {
     if status.updated() {
         paris::success!("Updated the binary to version {}", status.version());
     }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn toml_to_file<T>(to_ser: T, path: &str) -> Result<()> 
+where
+    T: Serialize
+{
+    let sered = toml::to_string_pretty(&to_ser)?;
+    tokio_uring::start(async {
+        tracing::info!("Writing {} to {}", sered, path);
+        let file = tokio_uring::fs::File::create(path).await?;
+        let buf = sered.into_bytes();
+        let (res, _) = file.write_at(buf, 0).await;
+        tracing::info!("Wrote {} bytes using io-uring", res?);
+        std::result::Result::<(), anyhow::Error>::Ok(())
+    })?;
     Ok(())
 }
