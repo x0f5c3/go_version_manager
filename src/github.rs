@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use manic::Client;
-use serde_json::Value;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use serde_json::Value;
 
 pub fn get_tags() -> Result<Vec<String>> {
     let client = Client::builder().user_agent("rust_api").build()?;

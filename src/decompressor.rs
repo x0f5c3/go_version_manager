@@ -11,6 +11,7 @@ use flate2::bufread::GzDecoder;
 #[cfg(not(target_os = "windows"))]
 use tar::Archive;
 
+#[derive(Debug)]
 pub struct ToDecompress<R>
 where
     R: Read + Seek + BufRead,
@@ -34,7 +35,7 @@ impl<R: Read + Seek + BufRead> ToDecompress<R> {
         Ok(Self { decompressor: dec })
     }
     #[cfg(target_os = "windows")]
-    #[instrument(skil(self))]
+    #[instrument(skip(self))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor
             .extract(path.parent().ok_or(Error::PathBufErr)?)

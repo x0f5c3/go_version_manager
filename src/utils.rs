@@ -5,14 +5,9 @@ use anyhow::Result;
 use console::Term;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use self_update::backends::github::Update;
-use self_update::cargo_crate_version;
-use self_update::update::ReleaseUpdate;
 use semver::Version;
-use std::fmt;
-use std::fmt::Formatter;
+
 use std::path::Path;
-use serde::Serialize;
 
 pub(crate) fn init_consts() {
     lazy_static::initialize(&FILE_EXT);
@@ -59,102 +54,4 @@ pub(crate) fn get_local_version(path: &Path) -> Result<Option<Version>> {
         }
         Err(x.into())
     })
-}
-
-pub(crate) enum ShouldUpdate {
-    Yes(Box<dyn ReleaseUpdate>),
-    No,
-}
-
-impl fmt::Display for ShouldUpdate {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Yes(u) => write!(f, "Update available: {:?}", u.get_latest_release()),
-            Self::No => write!(f, "You have the latest version"),
-        }
-    }
-}
-
-impl ShouldUpdate {
-    fn new(update: Option<Box<dyn ReleaseUpdate>>) -> Self {
-        if let Some(up) = update {
-            Self::Yes(up)
-        } else {
-            Self::No
-        }
-    }
-}
-
-pub(crate) fn check_and_ask(term: &Term) -> Result<()> {
-    let should = check_self_update()?;
-    if let ShouldUpdate::Yes(up) = should {
-        let answer = dialoguer::Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(format!("There's an update available\nYour version: {}\nLatest version: {}\nDo you want to update? [Y/n]", up.current_version(), up.get_latest_release()?.version))
-            .default(true).interact_on_opt(term)?.ok_or(Error::NoVersion)?;
-        if answer {
-            let upres = up.update()?;
-            if upres.updated() {
-                paris::success!(
-                    "<b><green>Successfully updated to version {}</></b>",
-                    upres.version()
-                );
-                return Ok(());
-            } else {
-                paris::error!(
-                    "<b><red>Failed to update, current version {}</></b>",
-                    upres.version()
-                )
-            }
-            return Ok(());
-        } else {
-            paris::info!("Ok, I will remind you next time")
-        }
-        return Ok(());
-    }
-    Ok(())
-}
-
-pub(crate) fn check_self_update() -> Result<ShouldUpdate> {
-    let up = Update::configure()
-        .repo_owner("x0f5c3")
-        .repo_name("go_version_manager")
-        .bin_name("go_version_manager")
-        .current_version(cargo_crate_version!())
-        .build()?;
-    let rel = up.get_latest_release()?;
-    if self_update::version::bump_is_greater(&up.current_version(), &rel.version)? {
-        Ok(ShouldUpdate::new(Some(up)))
-    } else {
-        Ok(ShouldUpdate::No)
-    }
-}
-
-pub(crate) fn self_update() -> Result<()> {
-    let status = Update::configure()
-        .repo_owner("x0f5c3")
-        .repo_name("go_version_manager")
-        .current_version(cargo_crate_version!())
-        .build()?
-        .update()?;
-    if status.updated() {
-        paris::success!("Updated the binary to version {}", status.version());
-    }
-    Ok(())
-}
-
-#[cfg(target_os = "linux")]
-pub(crate) fn toml_to_file<T>(to_ser: T, path: &str) -> Result<()> 
-where
-    T: Serialize
-{
-    let sered = toml::to_string_pretty(&to_ser)?;
-    tokio_uring::start(async {
-        tracing::info!("Writing {} to {}", sered, path);
-        let file = tokio_uring::fs::File::create(path).await?;
-        let buf = sered.into_bytes();
-        let (res, _) = file.write_at(buf, 0).await;
-        tracing::info!("Wrote {} bytes using io-uring", res?);
-        std::result::Result::<(), anyhow::Error>::Ok(())
-    })?;
-    Ok(())
 }

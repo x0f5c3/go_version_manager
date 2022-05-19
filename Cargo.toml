@@ -19,8 +19,8 @@ soup = "0.5.1"
 pretty_env_logger = "0.4.0"
 indicatif = { version = "0.16.0", features = ["rayon", "improved_unicode"] }
 human-panic = "1.0.3"
-clap = { git = "https://github.com/x0f5c3/clap", branch="master", features = ["cargo", "derive", "wrap_help", "unicode", "regex", "unstable-replace"] }
-clap_complete = { git = "https://github.com/x0f5c3/clap", branch="master" }
+clap = { version = "3.1.18", features = ["cargo", "derive", "wrap_help", "unicode", "regex", "unstable-replace"] }
+clap_complete = "3.1.4"
 directories = "4.0.1"
 console = "0.14.0"
 git2 = { version = "*", features = ["vendored-libgit2", "vendored-openssl"] }
@@ -42,7 +42,6 @@ shadow-rs = "0.11.0"
 which = "4.2.5"
 tracing-appender = "0.2.2"
 tracing-unwrap = "0.9.2"
-tokio-uring = "0.3.0"
 chrono = "0.4.19"
 
 
@@ -81,12 +80,10 @@ features = ["progress", "json", "threaded"]
 [target.'cfg(windows)'.dependencies]
 zip = "*"
 zip-extensions = "*"
-self_update = { version = "0.27.0", default-features = false, features = ["rustls", "archive-zip", "compression-zip-deflate"] }
 
 [target.'cfg(not(windows))'.dependencies]
 flate2 = "1.0.22"
 tar = "*"
-self_update = { version = "0.27.0", default-features = false, features = ["rustls", "archive-tar", "compression-flate2"] }
 
 [badges]
 github = { repository = "x0f5c3/go_version_manager" }

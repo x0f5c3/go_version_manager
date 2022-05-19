@@ -15,10 +15,9 @@ use crate::goversion::GoVersions;
 // use crate::error::Result;
 use anyhow::Result;
 
-
 // use semver::Version;
-use commands::Opt;
 use clap::Parser;
+use commands::Opt;
 
 /// Reads output path from command line arguments
 /// and downloads latest golang version to it

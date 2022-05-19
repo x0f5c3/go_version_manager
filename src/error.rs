@@ -32,8 +32,6 @@ pub enum Error {
     VARErr(#[from] VarError),
     #[error("Permission denied, restart the program as root")]
     NOPerm,
-    #[error("Update failed {0}")]
-    UpdateErr(#[from] self_update::errors::Error),
     #[error("Regex error: {0}")]
     RegexErr(#[from] regex::Error),
     #[error("TOML serializer error: {0}")]
@@ -41,7 +39,7 @@ pub enum Error {
     #[error("Can't find project dirs")]
     NOProjectDir,
     #[error("Clap parsing error")]
-    ClapErr(String)
+    ClapErr(String),
 }
 
 #[derive(Debug)]
