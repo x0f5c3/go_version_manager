@@ -1,4 +1,4 @@
-use crate::consts::{DL_PAGE, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
+use crate::consts::{CLIENT, DL_PAGE, DL_URL, FILE_EXT, GIT_VERSIONS, VERSION_LIST};
 use crate::decompressor::ToDecompress;
 use crate::error::Error;
 // use crate::error::Result;
@@ -22,10 +22,69 @@ use std::path::{Path, PathBuf};
 use tracing::instrument;
 use tracing::{debug, error, warn};
 
+pub const DLURL: &str = "https://go.dev/dl/?mode=json&include=all";
+
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct File {
+    filename: String,
+    os: String,
+    arch: String,
+    sha256: String,
+    size: String,
+    kind: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct JSONVersion {
+    version: String,
+    #[serde(skip, default = "default_version")]
+    parsed: Version,
+    stable: bool,
+    #[serde(skip)]
+    is_parsed: bool,
+    files: Vec<File>,
+}
+
+impl JSONVersion {
+    pub fn parse(&mut self) -> Result<&mut Self> {
+        if self.is_parsed {
+            Ok(self)
+        } else {
+            self.parsed = Version::parse(&self.version.replace("go", "").replace("rc", "-rc.").replace("beta", "-beta."))?;
+            self.is_parsed = true;
+            Ok(self)
+        }
+    }
+}
+
+
+impl fmt::Display for JSONVersion {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.version)
+    }
+}
+
+impl Default for JSONVersion {
+    fn default() -> Self {
+        Self {
+            version: String::new(),
+            parsed: default_version(),
+            stable: false,
+            is_parsed: false,
+            files: Vec::new(),
+        }
+    }
+}
+
+fn default_version() -> Version {
+    Version::new(0, 0, 0)
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GoVersions {
-    latest: GoVersion,
-    pub versions: Vec<GoVersion>,
+    latest: JSONVersion,
+    pub versions: Vec<JSONVersion>,
 }
 
 impl fmt::Display for GoVersions {
@@ -71,6 +130,17 @@ impl Downloaded {
 }
 
 impl GoVersions {
+    #[instrument(err, ret)]
+    pub fn get() -> Result<Self> {
+        let rels: Vec<JSONVersion> = CLIENT.get(DLURL).send()?.json().context("Failed to deserialize")?;
+        let mut parsed: Vec<JSONVersion> = rels.into_par_iter().filter_map(|mut x| x.parse().cloned().ok()).collect();
+        parsed.par_sort_unstable_by(|a, b| a.parsed.cmp(&b.parsed));
+        let latest = parsed.get(0).context("No latest found")?;
+        Ok(Self {
+            latest: latest.clone(),
+            versions: parsed,
+        })
+    }
     #[instrument(err, ret(Display))]
     fn from_file(path: &Path) -> Result<Self> {
         let read = std::fs::read_to_string(path)?;
@@ -93,32 +163,32 @@ impl GoVersions {
         file.sync_all()?;
         Ok(())
     }
-    #[instrument(err, ret)]
-    pub fn new(list_path: Option<&Path>) -> Result<Self> {
-        // let client = Client::new();
-        // let latest = Self::download_latest()?;
-        // let path = if let Some(p) = list_path {
-        //     p
-        // } else {
-        //     &VERSION_LIST
-        // };
-        // if path.exists() {
-        //     let to_cmp = Self::from_file(path)?;
-        //     if to_cmp.latest.version == latest.version {
-        //         return Ok(to_cmp);
-        //     }
-        // }
-        let mut vers = Self::download_versions()?;
-        vers.par_sort_unstable_by(|a, b| b.version.cmp(&a.version));
-        let latest = vers.first().cloned().ok_or(Error::NoVersion)?;
-        let res = Self {
-            versions: vers,
-            latest,
-        };
-        res.save(list_path)?;
-        Ok(res)
-    }
-    pub fn latest(&self) -> GoVersion {
+    // #[instrument(err, ret)]
+    // pub fn new(list_path: Option<&Path>) -> Result<Self> {
+    //     // let client = Client::new();
+    //     // let latest = Self::download_latest()?;
+    //     // let path = if let Some(p) = list_path {
+    //     //     p
+    //     // } else {
+    //     //     &VERSION_LIST
+    //     // };
+    //     // if path.exists() {
+    //     //     let to_cmp = Self::from_file(path)?;
+    //     //     if to_cmp.latest.version == latest.version {
+    //     //         return Ok(to_cmp);
+    //     //     }
+    //     // }
+    //     let mut vers = Self::download_versions()?;
+    //     vers.par_sort_unstable_by(|a, b| b.version.cmp(&a.version));
+    //     let latest = vers.first().cloned().ok_or(Error::NoVersion)?;
+    //     let res = Self {
+    //         versions: vers,
+    //         latest,
+    //     };
+    //     res.save(list_path)?;
+    //     Ok(res)
+    // }
+    pub fn latest(&self) -> JSONVersion {
         self.latest.clone()
     }
 
@@ -277,11 +347,11 @@ impl GoVersions {
     fn construct_url(vers: impl std::fmt::Display) -> String {
         return format!("{}/go{}.{}", DL_URL, vers, FILE_EXT.as_str());
     }
-    pub fn chosen_version(&self, vers: Version) -> Result<GoVersion> {
+    pub fn chosen_version(&self, vers: Version) -> Result<JSONVersion> {
         let res = self
             .versions
             .par_iter()
-            .find_any(|x| x.version == vers)
+            .find_any(|x| x.parsed == vers)
             .ok_or(Error::NoVersion)?;
         Ok(res.clone())
     }

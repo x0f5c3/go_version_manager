@@ -66,6 +66,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+mod check_list;
 mod commands;
 mod config;
 mod consts;

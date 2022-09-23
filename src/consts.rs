@@ -1,9 +1,10 @@
-use crate::{Error, GoVersions};
-use directories::ProjectDirs;
+use crate::GoVersions;
+use directories::{BaseDirs, ProjectDirs};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 // use crate::error::Result;
-use anyhow::Result;
+use anyhow::{Context, Result};
+use reqwest::Proxy;
 use semver::Version;
 
 pub const DL_URL: &str = "https://go.dev/dl";
@@ -18,7 +19,7 @@ pub const PATH_SEPERATOR: &str = ":";
 struct SysConfig {
     file_ext: String,
     config_dir: PathBuf,
-    proxies: Option<String>,
+    proxies: Option<Vec<String>>,
     #[serde(skip)]
     client: manic::Client,
     versions_list: PathBuf,
@@ -26,24 +27,18 @@ struct SysConfig {
     envs_dir: PathBuf,
     current: Option<Version>,
 }
+
 impl SysConfig {
     pub fn default() -> Result<Self> {
-        let config_dirs = directories::BaseDirs::new()
-            .ok_or(Error::NOProjectDir)?
-            .config_dir()
-            .to_path_buf();
+        let base_dirs =
+            ProjectDirs::from("rs", "", "go_version_manager").context("Can't get project dirs")?;
+        let config_dirs = base_dirs.config_dir().to_path_buf().join("go_manager");
         let config_path = config_dirs.join("go_manager.toml");
+        let def_install = BaseDirs::new()
+            .map(|x| x.home_dir().join(".goenvs"))
+            .context("Can't get base dirs")?;
         if config_path.exists() {
-            let mut ret: SysConfig = toml::from_str(&std::fs::read_to_string(config_path)?)?;
-            if let Some(p) = &ret.proxies {
-                let client = manic::Client::builder()
-                    .proxy(reqwest::Proxy::all(p)?)
-                    .build()?;
-                ret.client = client;
-            } else {
-                ret.client = manic::Client::new();
-            }
-            Ok(ret)
+            Self::from_path(config_path)
         } else {
             let (install_dir, version): (PathBuf, Option<Version>) = which::which("go")
                 .ok()
@@ -60,7 +55,7 @@ impl SysConfig {
                     ))
                 })
                 .and_then(|(x, y)| Some((x.parent().map(|x| x.to_path_buf())?, y)))
-                .unwrap_or_else(|| (DEFAULT_INSTALL.to_path_buf(), None));
+                .unwrap_or_else(|| (def_install, None));
             let versions_list = config_dirs.join("versions.toml");
             let ret = SysConfig {
                 file_ext: FILE_EXT.clone(),
@@ -69,7 +64,7 @@ impl SysConfig {
                 client: manic::Client::new(),
                 versions_list,
                 install_dir,
-                envs_dir: ENVS_DIR.clone(),
+                envs_dir: base_dirs.data_local_dir().join("go_envs"),
                 current: version,
             };
             std::fs::write(config_path, toml::to_string_pretty(&ret)?)?;
@@ -79,14 +74,25 @@ impl SysConfig {
     pub fn from_path(file: PathBuf) -> Result<Self> {
         let mut ret: SysConfig = toml::from_str(&std::fs::read_to_string(file)?)?;
         if let Some(p) = &ret.proxies {
-            let client = manic::Client::builder()
-                .proxy(reqwest::Proxy::all(p)?)
-                .build()?;
+            let mut client = {
+                let mut b = manic::Client::builder();
+                for i in p {
+                    b = b.proxy(Proxy::all(i)?);
+                }
+                b.build()?
+            };
             ret.client = client;
         } else {
             ret.client = manic::Client::new();
         }
         Ok(ret)
+    }
+    pub fn save(&self) -> Result<()> {
+        std::fs::write(
+            self.config_dir.join("go_manager.toml"),
+            toml::to_string_pretty(&self)?,
+        )
+        .context("Failed to save the config")
     }
 }
 
@@ -124,7 +130,7 @@ lazy_static! {
     };
     pub static ref CLIENT: manic::Client = manic::Client::new();
     pub static ref DL_PAGE: String = CLIENT.get(DL_URL).send().unwrap().text().unwrap();
-    pub static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.json");
+    pub static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.toml");
     pub static ref VERSION_LIST: PathBuf = CONFIG_DIR.join("versions.json");
     pub static ref DEFAULT_INSTALL: PathBuf = {
         if cfg!(windows) {
