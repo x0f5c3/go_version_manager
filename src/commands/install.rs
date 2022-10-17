@@ -5,24 +5,22 @@ use dialoguer::console::Term;
 use semver::Version;
 
 use crate::ask_for_version;
-use crate::commands::utils::{check_in_path, check_writable, parse_version};
 use crate::config::Config;
 use crate::consts::{CONFIG_PATH, DEFAULT_INSTALL};
-use crate::error::Error;
 use crate::goversion::{GoVersion, GoVersions};
-// use crate::Result;
-use anyhow::Result;
+use crate::utils::{check_in_path, check_writable};
+use anyhow::{anyhow, Context, Result};
 
 /// Install the chosen or latest golang version
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct Install {
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     config_path: Option<PathBuf>,
-    #[clap(parse(from_os_str), conflicts_with("config_path"))]
+    #[clap(conflicts_with("config_path"))]
     install_path: Option<PathBuf>,
     #[clap(short, long)]
     workers: Option<u8>,
-    #[clap(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
+    #[clap(long, conflicts_with("interactive"))]
     version: Option<Version>,
     #[clap(short, long)]
     interactive: bool,
@@ -34,7 +32,7 @@ impl Install {
         let config_path = self.config_path.unwrap_or_else(|| CONFIG_PATH.clone());
         let workers = self.workers.unwrap_or_else(|| num_cpus::get() as u8);
         let c = Config::new(install_path, config_path)?;
-        let versions = GoVersions::new(Some(&c.list_path))?;
+        let versions = GoVersions::new(c.list_path.clone())?;
         let golang = {
             if let Some(vers) = self.version {
                 let chosen: GoVersion = versions.chosen_version(vers)?;
@@ -42,13 +40,13 @@ impl Install {
             } else if self.interactive {
                 let term = Term::stdout();
                 let vers = ask_for_version(&term, &versions)?;
-                let chosen: GoVersion = versions.chosen_version(vers)?;
+                let chosen: GoVersion = versions.chosen_version(vers.parsed)?;
                 chosen
             } else {
                 versions.latest()
             }
         };
-        if check_writable(c.install_path.parent().ok_or(Error::PathBufErr)?)? {
+        if check_writable(c.install_path.parent().context("No parent")?)? {
             let res = golang.download(None, workers)?;
             res.unpack(&c.install_path, false)?;
             let bin_path = &c.install_path.join("bin");
@@ -57,7 +55,7 @@ impl Install {
             }
             Ok(())
         } else {
-            Err(Error::NOPerm.into())
+            Err(anyhow!("{} is not writable", c.install_path.display()))
         }
     }
 }

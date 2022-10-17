@@ -4,23 +4,19 @@ use clap::Parser;
 use dialoguer::console::Term;
 use semver::Version;
 
-use crate::consts::FILE_EXT;
-use crate::error::Error;
-use crate::goversion::{GoVersion, GoVersions};
+use crate::goversion::GoVersions;
 // use crate::Result;
+use crate::consts::VERSION_LIST;
 use crate::{ask_for_version, Downloaded};
-use anyhow::Result;
-
-use super::utils::parse_version;
+use anyhow::{Context, Result};
 
 /// Download golang version to file
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct Download {
-    #[clap(parse(from_os_str))]
     output: PathBuf,
     #[clap(short, long)]
     workers: Option<u8>,
-    #[clap(long, parse(try_from_str = parse_version), conflicts_with("interactive"))]
+    #[clap(long, conflicts_with("interactive"))]
     version: Option<Version>,
     #[clap(short, long)]
     interactive: bool,
@@ -30,31 +26,26 @@ impl Download {
     pub(crate) fn run(self) -> Result<()> {
         let workers = self.workers.unwrap_or(num_cpus::get() as u8);
         let term = Term::stdout();
-        let versions = GoVersions::new(None)?;
+        let versions = GoVersions::new(VERSION_LIST.clone())?;
         let golang = {
             if let Some(vers) = self.version {
-                let chosen: GoVersion = versions.chosen_version(vers)?;
+                let chosen: crate::goversion::GoVersion = versions.chosen_version(vers)?;
                 chosen
             } else if self.interactive {
                 let vers = ask_for_version(&term, &versions)?;
-                let chosen: GoVersion = versions.chosen_version(vers)?;
+                let chosen: crate::goversion::GoVersion = versions.chosen_version(vers.parsed)?;
                 chosen
             } else {
                 versions.latest()
             }
         };
         paris::info!(
-            "<b><bright blue>Filename: go{}.{}</></b>",
-            golang.version,
-            FILE_EXT.as_str()
-        );
-        paris::info!(
             "<b><blue>Downloading golang version {}</></b>",
             &golang.version
         );
         let file_path = golang.download(Some(self.output), workers)?;
         if let Downloaded::File { dir, vers: _ } = file_path {
-            let path_str = dir.to_str().ok_or(Error::PathBufErr)?;
+            let path_str = dir.to_str().context("Path cannot be converted to string")?;
             paris::success!(
                 "<b><bright green>Golang has been downloaded to {}</></b>",
                 path_str

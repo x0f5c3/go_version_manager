@@ -1,23 +1,20 @@
-use crate::GoVersions;
-use directories::{BaseDirs, ProjectDirs};
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-// use crate::error::Result;
 use anyhow::{Context, Result};
+use directories::ProjectDirs;
 use reqwest::Proxy;
 use semver::Version;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-pub const DL_URL: &str = "https://go.dev/dl";
+pub const DOWNLOAD_URL: &str = "https://go.dev/dl";
 
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 pub const PATH_SEPERATOR: &str = ";";
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(unix)]
 pub const PATH_SEPERATOR: &str = ":";
 
 #[derive(Debug, Deserialize, Serialize)]
 struct SysConfig {
-    file_ext: String,
     config_dir: PathBuf,
     proxies: Option<Vec<String>>,
     #[serde(skip)]
@@ -34,9 +31,7 @@ impl SysConfig {
             ProjectDirs::from("rs", "", "go_version_manager").context("Can't get project dirs")?;
         let config_dirs = base_dirs.config_dir().to_path_buf().join("go_manager");
         let config_path = config_dirs.join("go_manager.toml");
-        let def_install = BaseDirs::new()
-            .map(|x| x.home_dir().join(".goenvs"))
-            .context("Can't get base dirs")?;
+        let def_install = base_dirs.data_local_dir().join("envs");
         if config_path.exists() {
             Self::from_path(config_path)
         } else {
@@ -55,10 +50,9 @@ impl SysConfig {
                     ))
                 })
                 .and_then(|(x, y)| Some((x.parent().map(|x| x.to_path_buf())?, y)))
-                .unwrap_or_else(|| (def_install, None));
+                .unwrap_or((def_install, None));
             let versions_list = config_dirs.join("versions.toml");
             let ret = SysConfig {
-                file_ext: FILE_EXT.clone(),
                 config_dir: config_dirs,
                 proxies: None,
                 client: manic::Client::new(),
@@ -74,7 +68,7 @@ impl SysConfig {
     pub fn from_path(file: PathBuf) -> Result<Self> {
         let mut ret: SysConfig = toml::from_str(&std::fs::read_to_string(file)?)?;
         if let Some(p) = &ret.proxies {
-            let mut client = {
+            let client = {
                 let mut b = manic::Client::builder();
                 for i in p {
                     b = b.proxy(Proxy::all(i)?);
@@ -97,29 +91,6 @@ impl SysConfig {
 }
 
 lazy_static! {
-    pub static ref FILE_EXT: String = {
-        let os = match std::env::consts::OS {
-            "windows" => "windows",
-            "macos" => "darwin",
-            "linux" => "linux",
-            "freebsd" => "freebsd",
-            x => panic!("OS {} not supported", x),
-        };
-        let arch = match std::env::consts::ARCH {
-            "x86_64" => "amd64",
-            "x86" => "386",
-            "aarch64" => "arm64",
-            "arm" => "armv6l",
-            "powerpc64" => "ppc64le",
-            "s390x" => "s390x",
-            x => panic!("ARCH {} not supported", x),
-        };
-        let ext = match os {
-            "windows" => "zip",
-            _ => "tar.gz",
-        };
-        format!("{}-{}.{}", os, arch, ext)
-    };
     pub static ref PROJECT_DIRS: ProjectDirs = ProjectDirs::from("rs", "", "Go Manager").unwrap();
     pub static ref CONFIG_DIR: PathBuf = {
         let res = PROJECT_DIRS.config_dir().to_path_buf();
@@ -129,20 +100,27 @@ lazy_static! {
         res
     };
     pub static ref CLIENT: manic::Client = manic::Client::new();
-    pub static ref DL_PAGE: String = CLIENT.get(DL_URL).send().unwrap().text().unwrap();
     pub static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.toml");
     pub static ref VERSION_LIST: PathBuf = CONFIG_DIR.join("versions.json");
-    pub static ref DEFAULT_INSTALL: PathBuf = {
-        if cfg!(windows) {
-            PathBuf::from("C:\\Go")
-        } else {
-            PathBuf::from("/usr/local/go")
-        }
-    };
+    // pub static ref DEFAULT_INSTALL: PathBuf = {
+    //     if cfg!(windows) {
+    //         PathBuf::from("C:\\Go")
+    //     } else {
+    //         PathBuf::from("/usr/local/go")
+    //     }
+    // };
+    pub static ref DEFAULT_INSTALL: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
     pub static ref CURRENT_INSTALL: Option<PathBuf> = which::which("go").ok();
     pub static ref ENVS_DIR: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
-    pub static ref GIT_VERSIONS: Vec<Version> = {
-        let output = GoVersions::raw_git_versions().unwrap();
-        GoVersions::parse_versions(output).unwrap()
+    pub static ref ARCH: String = {
+        match std::env::consts::ARCH {
+            "x86_64" => "amd64".to_string(),
+            "x86" => "386".to_string(),
+            "aarch64" => "arm64".to_string(),
+            "arm" => "armv6l".to_string(),
+            "powerpc64" => "ppc64le".to_string(),
+            "s390x" => "s390x".to_string(),
+            x => panic!("ARCH {} not supported", x),
+        }
     };
 }

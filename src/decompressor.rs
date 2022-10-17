@@ -1,5 +1,4 @@
 // use crate::{Error, Result};
-use crate::Error;
 use anyhow::Context;
 use anyhow::Result;
 use std::io::{BufRead, Read, Seek};
@@ -11,7 +10,6 @@ use flate2::bufread::GzDecoder;
 #[cfg(not(target_os = "windows"))]
 use tar::Archive;
 
-#[derive(Debug)]
 pub struct ToDecompress<R>
 where
     R: Read + Seek + BufRead,
@@ -24,30 +22,28 @@ where
 
 impl<R: Read + Seek + BufRead> ToDecompress<R> {
     #[cfg(target_os = "windows")]
-    pub(crate) fn new(inner: R) -> Result<Self> {
-        Ok(Self {
+    pub(crate) fn new(inner: R) -> Self {
+        Self {
             decompressor: zip::ZipArchive::new(inner)?,
-        })
+        }
     }
     #[cfg(not(target_os = "windows"))]
-    pub(crate) fn new(inner: R) -> Result<Self> {
-        let dec = tar::Archive::new(GzDecoder::new(inner));
-        Ok(Self { decompressor: dec })
+    pub(crate) fn new(inner: R) -> Self {
+        let dec = Archive::new(GzDecoder::new(inner));
+        Self { decompressor: dec }
     }
     #[cfg(target_os = "windows")]
     #[instrument(skip(self))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor
-            .extract(path.parent().ok_or(Error::PathBufErr)?)
-            .map_err(Error::ZIPErr)
+            .extract(path.parent().context("No parent")?)
             .context("Unpacking error")
     }
     #[cfg(not(target_os = "windows"))]
     #[instrument(skip(self))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor
-            .unpack(path.parent().ok_or(Error::PathBufErr)?)
-            .map_err(Error::IOErr)
+            .unpack(path.parent().context("No parent")?)
             .context("Unpacking error")
     }
 }

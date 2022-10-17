@@ -8,9 +8,7 @@ use clap_complete::{generate, Shell};
 /// Generate completions
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct Completions {
-    #[clap(parse(try_from_str))]
     shell: Shell,
-    #[clap(parse(from_os_str))]
     out_dir: PathBuf,
 }
 

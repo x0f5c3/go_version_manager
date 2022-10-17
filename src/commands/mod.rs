@@ -13,7 +13,6 @@ mod download;
 mod init;
 mod install;
 mod update;
-mod utils;
 
 #[derive(Debug, Parser)]
 #[clap(name = "go_version_manager")]

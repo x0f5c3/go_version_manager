@@ -10,9 +10,8 @@ use anyhow::Result;
 /// Initialize the config
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct Init {
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     config_path: Option<PathBuf>,
-    #[clap(parse(from_os_str))]
     install_path: Option<PathBuf>,
 }
 
