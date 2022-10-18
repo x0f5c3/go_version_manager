@@ -2,24 +2,29 @@ use crate::consts::VERSION_LIST;
 use crate::goversion::GoVersion;
 use crate::utils::get_local_version;
 use crate::GoVersions;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub(crate) struct App {
     pub(crate) config: Config,
+    #[serde(skip)]
     pub(crate) versions: GoVersions,
 }
 
 impl App {
-    pub(crate) fn new(config: Config, list_path: PathBuf) -> Result<Self> {
-        let versions = if list_path.exists() {
-            GoVersions::from_file(&list_path)?
-        } else {
-            GoVersions::new(VERSION_LIST.clone())?
-        };
+    pub(crate) fn new_from_list(config: Config, list_path: PathBuf) -> Result<Self> {
+        let versions = GoVersions::new(list_path)?;
+        Ok(Self { config, versions })
+    }
+    pub(crate) fn new(config: Config) -> Result<Self> {
+        let versions = config
+            .list
+            .or_else(|| GoVersions::new(config.list_path.clone()).ok())
+            .context("No list available")?;
         Ok(Self { config, versions })
     }
 }
@@ -38,6 +43,9 @@ impl Config {
     fn from_file(path: PathBuf) -> Result<Self> {
         let conf = fs::read_to_string(&path)?;
         Ok(serde_json::from_str(&conf)?)
+    }
+    pub fn to_app(self) -> Result<App> {
+        App::new(self)
     }
     pub fn new(install_path: PathBuf, config_path: PathBuf) -> Result<Self> {
         if config_path.exists() {

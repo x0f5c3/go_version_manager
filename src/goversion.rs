@@ -1,4 +1,4 @@
-use crate::consts::{ARCH, CLIENT, DOWNLOAD_URL};
+use crate::consts::{ARCH, CLIENT, DOWNLOAD_URL, VERSION_LIST};
 use crate::decompressor::ToDecompress;
 use crate::utils::get_local_version;
 use anyhow::Context;
@@ -92,6 +92,12 @@ impl fmt::Display for GoVersions {
             self.latest,
             self.versions.len()
         )
+    }
+}
+
+impl Default for GoVersions {
+    fn default() -> Self {
+        GoVersions::new(VERSION_LIST.clone()).unwrap()
     }
 }
 

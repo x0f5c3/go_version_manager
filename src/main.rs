@@ -10,11 +10,14 @@ pub(crate) use utils::{ask_for_version, init_consts};
 use crate::goversion::Downloaded;
 use crate::goversion::GoVersions;
 
+use anyhow::anyhow;
 use anyhow::Result;
 
 use clap::Parser;
 use commands::Opt;
 
+/// Reads output path from command line arguments
+/// and downloads latest golang version to it
 #[quit::main]
 fn main() -> Result<()> {
     setup_panic!();
@@ -22,8 +25,10 @@ fn main() -> Result<()> {
     #[cfg(debug_assertions)]
     let now = std::time::Instant::now();
     init_consts();
-    tracing_subscriber::fmt().pretty().try_init().unwrap();
-    //check_and_ask(&Term::stdout())?;
+    tracing_subscriber::fmt()
+        .pretty()
+        .try_init()
+        .map_err(|x| anyhow!("Failed to init the tracing subscriber: {}", x.to_string()))?;
     let res = opt.run();
     if let Err(e) = res {
         paris::error!("Error: {}", e);
@@ -37,6 +42,6 @@ mod commands;
 mod config;
 mod consts;
 mod decompressor;
+mod envs;
 mod goversion;
-mod installed;
 mod utils;

@@ -5,18 +5,18 @@ use std::io::{BufRead, Read, Seek};
 use std::path::Path;
 use tracing::instrument;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(unix)]
 use flate2::bufread::GzDecoder;
-#[cfg(not(target_os = "windows"))]
+#[cfg(unix)]
 use tar::Archive;
 
 pub struct ToDecompress<R>
 where
     R: Read + Seek + BufRead,
 {
-    #[cfg(target_os = "windows")]
+    #[cfg(windows)]
     decompressor: zip::ZipArchive<R>,
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(unix)]
     decompressor: Archive<GzDecoder<R>>,
 }
 
@@ -32,14 +32,14 @@ impl<R: Read + Seek + BufRead> ToDecompress<R> {
         let dec = Archive::new(GzDecoder::new(inner));
         Self { decompressor: dec }
     }
-    #[cfg(target_os = "windows")]
+    #[cfg(windows)]
     #[instrument(skip(self))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor
             .extract(path.parent().context("No parent")?)
             .context("Unpacking error")
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(unix)]
     #[instrument(skip(self))]
     pub(crate) fn extract(&mut self, path: &Path) -> Result<()> {
         self.decompressor

@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::path::PathBuf;
+// use crate::error::Result;
 use reqwest::Proxy;
 use semver::Version;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 pub const DOWNLOAD_URL: &str = "https://go.dev/dl";
 
@@ -12,6 +14,45 @@ pub const PATH_SEPERATOR: &str = ";";
 
 #[cfg(unix)]
 pub const PATH_SEPERATOR: &str = ":";
+
+pub const KIND: &str = "archive";
+
+#[cfg(windows)]
+pub const OS: &str = "windows";
+
+#[cfg(target_os = "macos")]
+pub const OS: &str = "darwin";
+
+#[cfg(target_os = "linux")]
+pub const OS: &str = "linux";
+
+#[cfg(windows)]
+pub fn env_setter<D: Display>(path: D) -> String {
+    format!(
+        r###"if (-NOT $env:PATH.Split(';').Contains('{}')) {{\
+            [Environment]::SetEnvironmentVariable(
+            'Path',
+            [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::User) + '{}',
+            [EnvironmentVariableTarget]::User)
+        }}"###,
+        path, path
+    )
+}
+
+#[cfg(unix)]
+pub fn env_setter<D: Display>(path: D) -> String {
+    format!(
+        r###"#!/bin/sh
+    case ":${{PATH}}:" in
+        *:"{}":*)
+        ;;
+    *)
+        export PATH="{}:$PATH"
+        ;;
+esac"###,
+        path, path
+    )
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 struct SysConfig {
@@ -110,7 +151,9 @@ lazy_static! {
     //     }
     // };
     pub static ref DEFAULT_INSTALL: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
-    pub static ref CURRENT_INSTALL: Option<PathBuf> = which::which("go").ok();
+    pub static ref CURRENT_INSTALL: Option<PathBuf> = which::which("go")
+                                                        .context("Can't find go")
+                                                        .and_then(|x| x.parent().context("Can't get parent")?.parent().context("Can't get parent").map(|x| x.to_path_buf())).ok();
     pub static ref ENVS_DIR: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
     pub static ref ARCH: String = {
         match std::env::consts::ARCH {
