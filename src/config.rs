@@ -42,7 +42,7 @@ pub(crate) struct Config {
 impl Config {
     fn from_file(path: PathBuf) -> Result<Self> {
         let conf = fs::read_to_string(&path)?;
-        Ok(serde_json::from_str(&conf)?)
+        Ok(toml::from_str(&conf)?)
     }
     pub fn to_app(self) -> Result<App> {
         App::new(self)
@@ -75,12 +75,20 @@ impl Config {
         })
     }
     pub fn save(&self) -> Result<()> {
+        if let Some(l) = &self.list {
+            let mut file = fs::OpenOptions::new()
+                .truncate(true)
+                .create(true)
+                .write(true)
+                .open(&self.list_path)?;
+            file.write_all(toml::to_string_pretty(l)?.as_bytes())?;
+        }
         let mut file = fs::OpenOptions::new()
             .truncate(true)
             .create(true)
             .write(true)
             .open(&self.config_path)?;
-        let to_write = serde_json::to_string_pretty(&self)?;
+        let to_write = toml::to_string_pretty(&self)?;
         file.write_all(to_write.as_bytes())?;
         file.sync_all()?;
         Ok(())

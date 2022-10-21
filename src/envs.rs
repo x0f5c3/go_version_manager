@@ -1,5 +1,5 @@
-use crate::config::App;
-use crate::consts::{env_setter, ENVS_DIR};
+use crate::config::{App, Config};
+use crate::consts::{env_setter, CONFIG_PATH, ENVS_DIR};
 use anyhow::{Context, Result};
 use rayon::prelude::*;
 use semver::Version;
@@ -17,24 +17,21 @@ pub struct InstalledEnv {
 impl InstalledEnv {
     pub fn new(path: &Path) -> Result<InstalledEnv> {
         let go_path = path.join("bin").join("go");
-        let potential_env_file = path.join(".go.env");
-        let version = if potential_env_file.exists() {
-            Version::parse(
-                &fs::read_to_string(potential_env_file).context("Can't read .go.env file")?,
-            )
-            .context("Can't parse version from .go.env file")?
-        } else {
-            Version::parse(
-                &duct::cmd!(&go_path, "version")
-                    .read()
-                    .context("Can't get go version")?
-                    .split(" ")
-                    .nth(2)
-                    .context("Can't get go version")?
-                    .replace("go", ""),
-            )
-            .context("Can't parse version from go version")?
-        };
+        let potential_env_file = path.join(".go_version.env");
+        if potential_env_file.exists() && potential_env_file.is_file() {
+            return toml::from_str(&fs::read_to_string(potential_env_file)?)
+                .context("Failed to parse env file");
+        }
+        let version = Version::parse(
+            &duct::cmd!(&go_path, "version")
+                .read()
+                .context("Can't get go version")?
+                .split(" ")
+                .nth(2)
+                .context("Can't get go version")?
+                .replace("go", ""),
+        )
+        .context("Can't parse version from go version")?;
         Ok(InstalledEnv {
             version,
             path: path.to_path_buf(),
@@ -69,7 +66,10 @@ impl EnvManager {
                         }
                     })
                     .collect();
+                let config = Config::new(env_dir.clone(), CONFIG_PATH.clone())?;
+                let app = config.to_app()?;
                 let ret = EnvManager {
+                    app,
                     env_dir,
                     current,
                     available,
@@ -88,6 +88,7 @@ impl EnvManager {
             self.env_dir.join(".go.env"),
             env_setter(self.current.path.join("bin").display()),
         )?;
+        self.app.config.save()?;
         Ok(())
     }
 }

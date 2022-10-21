@@ -153,7 +153,13 @@ lazy_static! {
     pub static ref DEFAULT_INSTALL: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
     pub static ref CURRENT_INSTALL: Option<PathBuf> = which::which("go")
                                                         .context("Can't find go")
-                                                        .and_then(|x| x.parent().context("Can't get parent")?.parent().context("Can't get parent").map(|x| x.to_path_buf())).ok();
+                                                        .and_then(|x| {
+                                                        x.parent()
+                                                        .context("Can't get parent")?
+                                                        .parent()
+                                                        .context("Can't get parent")
+                                                        .map(|x| x.to_path_buf())
+    }).ok();
     pub static ref ENVS_DIR: PathBuf = PROJECT_DIRS.data_local_dir().join("envs");
     pub static ref ARCH: String = {
         match std::env::consts::ARCH {
