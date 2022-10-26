@@ -26,7 +26,7 @@ impl InstalledEnv {
             &duct::cmd!(&go_path, "version")
                 .read()
                 .context("Can't get go version")?
-                .split(" ")
+                .split(' ')
                 .nth(2)
                 .context("Can't get go version")?
                 .replace("go", ""),
@@ -50,7 +50,7 @@ pub struct EnvManager {
 impl EnvManager {
     pub fn new() -> Result<Self> {
         let env_dir = env_dir()?;
-        match from_list(&env_dir.as_path()) {
+        match from_list(env_dir.as_path()) {
             Some(x) => Ok(x),
             None => {
                 let current = InstalledEnv::new(&env_dir.join("current"))?;
@@ -59,15 +59,16 @@ impl EnvManager {
                     .context("Can't read env dir")?
                     .par_bridge()
                     .filter_map(|x| {
-                        if x.ok()?.file_name().to_str()?.contains("current") {
+                        let opt = x.ok()?;
+                        if opt.file_name().to_str()?.contains("current") {
                             None
                         } else {
-                            Some(InstalledEnv::new(x.ok()?.path().as_path()).ok()?)
+                            Some(InstalledEnv::new(opt.path().as_path()).ok()?)
                         }
                     })
                     .collect();
                 let config = Config::new(env_dir.clone(), CONFIG_PATH.clone())?;
-                let app = config.to_app()?;
+                let app = config.into_app()?;
                 let ret = EnvManager {
                     app,
                     env_dir,

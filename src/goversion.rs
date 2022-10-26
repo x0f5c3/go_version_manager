@@ -112,12 +112,12 @@ impl Downloaded {
         let par = path.parent().context("No parent")?;
         let vers = match self {
             Self::Mem { buf, vers } => {
-                let mut r = ToDecompress::new(Cursor::new(buf));
+                let mut r = ToDecompress::new(Cursor::new(buf))?;
                 r.extract(path)?;
                 vers
             }
             Self::File { dir, vers } => {
-                let mut r = ToDecompress::new(BufReader::new(std::fs::File::open(dir)?));
+                let mut r = ToDecompress::new(BufReader::new(std::fs::File::open(dir)?))?;
                 r.extract(path)?;
                 vers
             }

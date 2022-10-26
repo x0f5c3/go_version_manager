@@ -21,10 +21,14 @@ impl App {
         Ok(Self { config, versions })
     }
     pub(crate) fn new(config: Config) -> Result<Self> {
-        let versions = config
-            .list
-            .or_else(|| GoVersions::new(config.list_path.clone()).ok())
-            .context("No list available")?;
+        let versions = if let Some(l) = &config.list {
+            l.clone()
+        } else {
+            GoVersions::new(config.list_path.clone()).context("No list available")?
+        };
+        // .as_ref()
+        // .and_then(|x| Some(x.clone()))
+        // .or_else(|| GoVersions::new(config.list_path.clone()).ok())
         Ok(Self { config, versions })
     }
 }
@@ -44,7 +48,7 @@ impl Config {
         let conf = fs::read_to_string(&path)?;
         Ok(toml::from_str(&conf)?)
     }
-    pub fn to_app(self) -> Result<App> {
+    pub fn into_app(self) -> Result<App> {
         App::new(self)
     }
     pub fn new(install_path: PathBuf, config_path: PathBuf) -> Result<Self> {

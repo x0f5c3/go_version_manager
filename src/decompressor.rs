@@ -21,16 +21,16 @@ where
 }
 
 impl<R: Read + Seek + BufRead> ToDecompress<R> {
-    #[cfg(target_os = "windows")]
-    pub(crate) fn new(inner: R) -> Self {
-        Self {
+    #[cfg(windows)]
+    pub(crate) fn new(inner: R) -> Result<Self> {
+        Ok(Self {
             decompressor: zip::ZipArchive::new(inner)?,
-        }
+        })
     }
-    #[cfg(not(target_os = "windows"))]
-    pub(crate) fn new(inner: R) -> Self {
+    #[cfg(unix)]
+    pub(crate) fn new(inner: R) -> Result<Self> {
         let dec = Archive::new(GzDecoder::new(inner));
-        Self { decompressor: dec }
+        Ok(Self { decompressor: dec })
     }
     #[cfg(windows)]
     #[instrument(skip(self))]
