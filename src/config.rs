@@ -1,8 +1,14 @@
-use crate::consts::VERSION_LIST;
+use crate::consts::{CONFIG_PATH, VERSION_LIST};
 use crate::goversion::GoVersion;
 use crate::utils::get_local_version;
 use crate::GoVersions;
 use anyhow::{Context, Result};
+use clap::Parser;
+use figment::providers::Format;
+use figment::{
+    providers::{Data, Env, Serialized, Toml},
+    Figment,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
@@ -33,17 +39,30 @@ impl App {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Parser)]
 pub(crate) struct Config {
+    #[clap(short, long)]
     pub(crate) install_path: PathBuf,
+    #[clap(short, long)]
     pub(crate) list_path: PathBuf,
+    #[clap(short, long)]
     pub(crate) config_path: PathBuf,
     #[serde(skip)]
+    #[clap(skip)]
     pub(crate) list: Option<GoVersions>,
+    #[clap(skip)]
     pub(crate) current: Option<GoVersion>,
 }
 
 impl Config {
+    fn from_figment() -> Result<Self> {
+        let conf: Config = Figment::new()
+            .merge(Serialized::defaults(Config::parse()))
+            .merge(Toml::file(CONFIG_PATH.as_path()))
+            .merge(Env::prefixed("GOM_"))
+            .extract()?;
+        Ok(conf)
+    }
     fn from_file(path: PathBuf) -> Result<Self> {
         let conf = fs::read_to_string(&path)?;
         Ok(toml::from_str(&conf)?)
